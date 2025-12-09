@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Phone, Filter, Search, Download, Calendar, Clock, CheckCircle, XCircle, PhoneMissed } from 'lucide-react';
+import { Phone, Filter, Search, Download, Calendar, Clock, CheckCircle, XCircle, PhoneMissed, Play, Pause, Volume2, Download as DownloadIcon, Mic } from 'lucide-react';
 import { supabase } from '../../../services/supabase';
 
 interface CallLog {
@@ -22,6 +22,20 @@ interface CallLog {
   caller_name?: string;
   receiver_name?: string;
   duration_seconds?: number;
+  is_recorded?: boolean;
+  recording_id?: string;
+}
+
+interface CallRecording {
+  id: string;
+  call_id: string;
+  file_path: string;
+  file_name: string;
+  file_size_bytes: number;
+  duration_seconds: number;
+  status: 'recording' | 'processing' | 'ready' | 'failed' | 'deleted';
+  compression_ratio: number;
+  play_count: number;
 }
 
 const AdminCallLogsTab: React.FC = () => {
@@ -30,6 +44,13 @@ const AdminCallLogsTab: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'ended' | 'rejected' | 'missed'>('all');
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
+  
+  // 🎙️ Recording state
+  const [recordings, setRecordings] = useState<Map<string, CallRecording>>(new Map());
+  const [playingCallId, setPlayingCallId] = useState<string | null>(null);
+  const [audioRef] = useState<HTMLAudioElement>(new Audio());
+  const [currentTime, setCurrentTime] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Stats
   const [stats, setStats] = useState({
@@ -38,7 +59,127 @@ const AdminCallLogsTab: React.FC = () => {
     rejected: 0,
     missed: 0,
     avgDuration: 0,
+    recordedCalls: 0,
   });
+
+  // 🎙️ Load recordings from database
+  const loadRecordings = async (calls: CallLog[]) => {
+    try {
+      const recordingIds = calls.map(c => c.recording_id).filter(Boolean) as string[];
+      if (recordingIds.length === 0) return;
+
+      const { data, error } = await supabase
+        .from('call_recordings')
+        .select('*')
+        .in('id', recordingIds)
+        .eq('status', 'ready');
+
+      if (error) throw error;
+
+      const recordingMap = new Map<string, CallRecording>();
+      (data || []).forEach((rec) => {
+        recordingMap.set(rec.call_id, rec);
+      });
+      setRecordings(recordingMap);
+    } catch (err) {
+      console.error('❌ [AdminCallLogs] Load recordings error:', err);
+    }
+  };
+
+  // 🎙️ Play/Pause recording
+  const togglePlayRecording = async (callId: string, recordingId: string) => {
+    try {
+      const recording = recordings.get(callId);
+      if (!recording) return;
+
+      if (playingCallId === callId && isPlaying) {
+        // Pause current
+        audioRef.pause();
+        setIsPlaying(false);
+        return;
+      }
+
+      // Load new recording
+      if (playingCallId !== callId) {
+        // Get signed URL from Supabase Storage
+        const { data, error } = await supabase.storage
+          .from('call-recordings')
+          .createSignedUrl(recording.file_path, 3600); // 1 hour expiry
+
+        if (error) throw error;
+        if (!data?.signedUrl) throw new Error('No signed URL');
+
+        audioRef.src = data.signedUrl;
+        audioRef.load();
+        
+        // Increment play count
+        await supabase
+          .from('call_recordings')
+          .update({ 
+            play_count: recording.play_count + 1,
+            last_played_at: new Date().toISOString(),
+          })
+          .eq('id', recordingId);
+      }
+
+      audioRef.play();
+      setPlayingCallId(callId);
+      setIsPlaying(true);
+    } catch (err) {
+      console.error('❌ [AdminCallLogs] Play recording error:', err);
+      alert('Kayıt oynatılamadı: ' + (err as Error).message);
+    }
+  };
+
+  // 🎙️ Download recording
+  const downloadRecording = async (callId: string) => {
+    try {
+      const recording = recordings.get(callId);
+      if (!recording) return;
+
+      const { data, error } = await supabase.storage
+        .from('call-recordings')
+        .download(recording.file_path);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = recording.file_name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('❌ [AdminCallLogs] Download error:', err);
+      alert('Kayıt indirilemedi: ' + (err as Error).message);
+    }
+  };
+
+  // Audio event listeners
+  useEffect(() => {
+    const audio = audioRef;
+    
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setPlayingCallId(null);
+      setCurrentTime(0);
+    };
+    const handlePause = () => setIsPlaying(false);
+    const handlePlay = () => setIsPlaying(true);
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('play', handlePlay);
+
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('play', handlePlay);
+    };
+  }, [audioRef]);
 
   const loadCallLogs = async () => {
     try {
@@ -131,12 +272,16 @@ const AdminCallLogsTab: React.FC = () => {
       const ended = logsWithNames.filter((c) => c.status === 'ended').length;
       const rejected = logsWithNames.filter((c) => c.status === 'rejected').length;
       const missed = logsWithNames.filter((c) => c.status === 'missed').length;
+      const recordedCalls = logsWithNames.filter((c) => c.is_recorded).length;
       const totalDuration = logsWithNames
         .filter((c) => c.duration_seconds)
         .reduce((sum, c) => sum + (c.duration_seconds || 0), 0);
       const avgDuration = ended > 0 ? Math.floor(totalDuration / ended) : 0;
 
-      setStats({ total, ended, rejected, missed, avgDuration });
+      setStats({ total, ended, rejected, missed, avgDuration, recordedCalls });
+      
+      // 🎙️ Load recordings for recorded calls
+      await loadRecordings(logsWithNames.filter(c => c.is_recorded && c.recording_id));
     } catch (err) {
       console.error('❌ [AdminCallLogs] Load error:', err);
     } finally {
@@ -215,7 +360,7 @@ const AdminCallLogsTab: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
           <div className="text-slate-600 text-sm mb-1">Toplam Arama</div>
           <div className="text-2xl font-bold text-slate-800">{stats.total}</div>
@@ -235,6 +380,13 @@ const AdminCallLogsTab: React.FC = () => {
         <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
           <div className="text-blue-600 text-sm mb-1">Ort. Süre</div>
           <div className="text-2xl font-bold text-blue-700">{formatDuration(stats.avgDuration)}</div>
+        </div>
+        <div className="bg-purple-50 p-4 rounded-xl border border-purple-200">
+          <div className="text-purple-600 text-sm mb-1 flex items-center gap-1">
+            <Mic size={14} />
+            Kayıtlı
+          </div>
+          <div className="text-2xl font-bold text-purple-700">{stats.recordedCalls}</div>
         </div>
       </div>
 
@@ -286,33 +438,138 @@ const AdminCallLogsTab: React.FC = () => {
               <th className="text-left px-4 py-3 text-sm font-semibold text-slate-700">Durum</th>
               <th className="text-left px-4 py-3 text-sm font-semibold text-slate-700">Süre</th>
               <th className="text-left px-4 py-3 text-sm font-semibold text-slate-700">Tarih</th>
+              <th className="text-left px-4 py-3 text-sm font-semibold text-slate-700">🎙️ Kayıt</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filteredLogs.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-12 text-center text-slate-400">
                   Kayıt bulunamadı
                 </td>
               </tr>
             ) : (
-              filteredLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-3 text-sm text-slate-800 font-medium">{log.caller_name}</td>
-                  <td className="px-4 py-3 text-sm text-slate-800 font-medium">{log.receiver_name}</td>
-                  <td className="px-4 py-3">{getStatusBadge(log.status)}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600 font-mono">
-                    {log.duration_seconds ? formatDuration(log.duration_seconds) : '-'}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600">
-                    {new Date(log.started_at).toLocaleString('tr-TR')}
-                  </td>
-                </tr>
-              ))
+              filteredLogs.map((log) => {
+                const recording = recordings.get(log.id);
+                const isThisPlaying = playingCallId === log.id && isPlaying;
+                
+                return (
+                  <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3 text-sm text-slate-800 font-medium">{log.caller_name}</td>
+                    <td className="px-4 py-3 text-sm text-slate-800 font-medium">{log.receiver_name}</td>
+                    <td className="px-4 py-3">{getStatusBadge(log.status)}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600 font-mono">
+                      {log.duration_seconds ? formatDuration(log.duration_seconds) : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      {new Date(log.started_at).toLocaleString('tr-TR')}
+                    </td>
+                    <td className="px-4 py-3">
+                      {log.is_recorded && recording ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => togglePlayRecording(log.id, recording.id)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              isThisPlaying
+                                ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                            title={isThisPlaying ? 'Duraklat' : 'Oynat'}
+                          >
+                            {isThisPlaying ? <Pause size={16} /> : <Play size={16} />}
+                          </button>
+                          <button
+                            onClick={() => downloadRecording(log.id)}
+                            className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                            title="İndir"
+                          >
+                            <DownloadIcon size={16} />
+                          </button>
+                          <div className="text-xs text-slate-500">
+                            {(recording.file_size_bytes / 1024 / 1024).toFixed(1)} MB
+                          </div>
+                        </div>
+                      ) : log.is_recorded ? (
+                        <span className="text-xs text-orange-600">İşleniyor...</span>
+                      ) : (
+                        <span className="text-xs text-slate-400">Kayıt yok</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
+
+      {/* 🎙️ Global Audio Player (şu an oynatılan) */}
+      {playingCallId && (
+        <div className="fixed bottom-6 right-6 bg-white rounded-xl shadow-2xl border border-slate-200 p-4 w-80 z-50">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Volume2 className="text-purple-600" size={20} />
+              <div className="text-sm font-semibold text-slate-800">Kayıt Oynatıcı</div>
+            </div>
+            <button
+              onClick={() => {
+                audioRef.pause();
+                setPlayingCallId(null);
+                setIsPlaying(false);
+              }}
+              className="text-slate-400 hover:text-slate-600"
+            >
+              ×
+            </button>
+          </div>
+          
+          {(() => {
+            const log = callLogs.find(c => c.id === playingCallId);
+            const recording = recordings.get(playingCallId);
+            if (!log || !recording) return null;
+            
+            return (
+              <>
+                <div className="text-xs text-slate-600 mb-3">
+                  <div className="font-medium">{log.caller_name} → {log.receiver_name}</div>
+                  <div className="text-slate-400">{new Date(log.started_at).toLocaleString('tr-TR')}</div>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => togglePlayRecording(playingCallId, recording.id)}
+                      className="p-2 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors"
+                    >
+                      {isPlaying ? <Pause size={18} /> : <Play size={18} />}
+                    </button>
+                    <div className="flex-1">
+                      <input
+                        type="range"
+                        min="0"
+                        max={audioRef.duration || 0}
+                        value={currentTime}
+                        onChange={(e) => {
+                          audioRef.currentTime = parseFloat(e.target.value);
+                        }}
+                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                      />
+                    </div>
+                    <div className="text-xs text-slate-600 font-mono">
+                      {formatDuration(Math.floor(currentTime))} / {formatDuration(recording.duration_seconds)}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>Opus {(recording.compression_ratio).toFixed(1)}x sıkıştırma</span>
+                    <span>{recording.play_count} kez dinlendi</span>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      )}
     </div>
   );
 };
