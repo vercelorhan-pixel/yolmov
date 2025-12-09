@@ -266,6 +266,8 @@ export async function getActivityLogs(options?: {
   endDate?: string;
 }): Promise<ActivityLog[]> {
   try {
+    console.log('🔍 [ActivityTracker] Fetching activity logs with options:', options);
+    
     let query = supabase
       .from('activity_logs')
       .select('*')
@@ -288,6 +290,12 @@ export async function getActivityLogs(options?: {
     }
 
     const { data, error } = await query;
+
+    console.log('🔍 [ActivityTracker] Query result:', { 
+      dataCount: data?.length || 0, 
+      error: error?.message || null,
+      errorCode: error?.code || null
+    });
 
     if (error) throw error;
 
@@ -318,6 +326,8 @@ export async function getActivityLogs(options?: {
 
 // Aktivite istatistiklerini getir
 export async function getActivityStats(): Promise<{
+  // Debug: Query başlangıcı
+  // console.log('🔍 [ActivityTracker] Fetching activity stats...');
   totalPageViews: number;
   uniqueVisitors: number;
   todayPageViews: number;
