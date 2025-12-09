@@ -1,0 +1,51 @@
+# Yolmov Robots.txt
+# https://yolmov.com/robots.txt
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://yolmov.com/sitemap.xml
+
+# Crawl hızı - Günde maksimum 10,000 sayfa
+Crawl-delay: 1
+
+# İzin verilen önemli sayfalar
+Allow: /cekici/
+Allow: /aku/
+Allow: /lastik/
+Allow: /yakit/
+Allow: /anahtar/
+Allow: /hizmetler
+Allow: /hakkimizda
+Allow: /kampanyalar
+Allow: /blog
+
+# Engellenen sayfalar (private/admin)
+Disallow: /admin/
+Disallow: /partner/
+Disallow: /musteri/
+Disallow: /giris/
+Disallow: /teklif
+Disallow: /liste
+Disallow: /profil
+
+# Engellenen parametreler
+Disallow: /*?*tab=
+Disallow: /*?*modal=
+Disallow: /*?*filter=
+
+# Google
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+# Bing
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# Yandex
+User-agent: Yandex
+Allow: /
+Crawl-delay: 2
