@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS call_queue_assignments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   
   -- Çağrı ve havuz referansları
-  call_id UUID NOT NULL REFERENCES calls(id) ON DELETE CASCADE,
+  call_id UUID REFERENCES calls(id) ON DELETE CASCADE,
   queue_id UUID NOT NULL REFERENCES call_queues(id) ON DELETE CASCADE,
   
   -- Atanan agent (varsa)

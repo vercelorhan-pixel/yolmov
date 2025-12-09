@@ -1,6 +1,6 @@
 //   Service Worker for YOLMOV PWA
 // ⚠️ CACHE_VERSION: Manuel olarak güncelle (sadece önemli değişikliklerde)
-const CACHE_VERSION = 'v1.0.5';
+const CACHE_VERSION = 'v1.0.6';
 const CACHE_NAME = `yolmov-cache-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
 
