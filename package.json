@@ -40,6 +40,7 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@types/simple-peer": "^9.11.9",
+    "@vercel/node": "^5.5.15",
     "@vitejs/plugin-react": "^4.3.4",
     "globals": "^15.14.0",
     "supabase": "^2.65.6",
