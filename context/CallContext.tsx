@@ -6,12 +6,14 @@
  * - Gelen arama bildirimleri
  * - P2P WebRTC bağlantısı (simple-peer)
  * - Supabase Realtime ile sinyal iletimi
+ * - Çift Akış Kayıt: HD canlı görüşme + Opus arşiv
  */
 
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '../services/supabase';
 // @ts-ignore
 import Peer from 'simple-peer';
+import { startCallRecording, stopCallRecording, getRecordingState, type RecordingState } from '../services/callRecording';
 
 // =====================================================
 // TYPES
@@ -60,6 +62,10 @@ export interface CallContextType {
   // Süre
   callDuration: number;
   
+  // Kayıt durumu (Çift Akış Mimarisi)
+  isRecording: boolean;
+  recordingState: RecordingState | null;
+  
   // Audio refs (internal)
   localAudioRef: React.RefObject<HTMLAudioElement>;
   remoteAudioRef: React.RefObject<HTMLAudioElement>;
@@ -81,6 +87,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [callDuration, setCallDuration] = useState(0);
+  
+  // Kayıt durumu (Çift Akış Mimarisi)
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingState, setRecordingState] = useState<RecordingState | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   
   // Refs
   const localAudioRef = useRef<HTMLAudioElement>(null);
@@ -329,7 +340,22 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
   
-  const cleanupCall = () => {
+  const cleanupCall = async () => {
+    // 🎙️ KAYDI DURDUR ve Supabase'e yükle
+    if (isRecording) {
+      try {
+        console.log('🎙️ [CallContext] Stopping recording and uploading...');
+        const result = await stopCallRecording();
+        if (result) {
+          console.log('🎙️ [CallContext] Recording uploaded:', result.storagePath);
+        }
+      } catch (err) {
+        console.warn('🎙️ [CallContext] Recording stop error:', err);
+      }
+      setIsRecording(false);
+      setRecordingState(null);
+    }
+    
     // Peer bağlantısını kapat
     if (peerRef.current) {
       peerRef.current.destroy();
@@ -359,9 +385,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     callIdRef.current = null;
   };
   
-  const handleCallEnded = (reason: string) => {
+  const handleCallEnded = async (reason: string) => {
     console.log('📞 [CallContext] Call ended:', reason);
-    cleanupCall();
+    await cleanupCall();
     setCallStatus('ended');
     
     // 2 saniye sonra idle'a dön
@@ -490,12 +516,41 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
       
-      // 5. Karşı tarafın sesini al
+      // 5. Karşı tarafın sesini al ve KAYIT BAŞLAT
       peer.on('stream', (remoteStream) => {
         console.log('📞 [CallContext] Got remote stream');
+        remoteStreamRef.current = remoteStream;
+        
         if (remoteAudioRef.current) {
           remoteAudioRef.current.srcObject = remoteStream;
           remoteAudioRef.current.play().catch(() => {});
+        }
+        
+        // 🎙️ ÇİFT AKIŞ KAYIT: HD görüşme + Opus arşiv
+        // Görüşme bağlandığında kayıt başlat
+        if (localStreamRef.current && callIdRef.current) {
+          console.log('🎙️ [CallContext] Starting call recording...');
+          startCallRecording(
+            localStreamRef.current,
+            remoteStream,
+            {
+              callId: callIdRef.current,
+              callerId: user.id,
+              callerType: user.type,
+              callerName: user.name,
+              receiverId: receiverId,
+              receiverType: receiverType,
+              receiverName: 'Partner', // TODO: Partner ismini al
+            }
+          ).then((recordingId) => {
+            if (recordingId) {
+              setIsRecording(true);
+              setRecordingState(getRecordingState());
+              console.log('🎙️ [CallContext] Recording started:', recordingId);
+            }
+          }).catch((err) => {
+            console.warn('🎙️ [CallContext] Recording failed to start:', err);
+          });
         }
       });
       
@@ -688,12 +743,42 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         startDurationTimer();
       });
       
-      // 6. Karşı tarafın sesini al
+      // 6. Karşı tarafın sesini al ve KAYIT BAŞLAT (Partner tarafı)
       peer.on('stream', (remoteStream) => {
         console.log('📞 [CallContext] Got remote stream');
+        remoteStreamRef.current = remoteStream;
+        
         if (remoteAudioRef.current) {
           remoteAudioRef.current.srcObject = remoteStream;
           remoteAudioRef.current.play().catch(() => {});
+        }
+        
+        // 🎙️ ÇİFT AKIŞ KAYIT: Partner tarafında da kayıt başlat
+        // Not: Kayıt her iki tarafta da olabilir ama biz sadece bir kopyayı saklıyoruz
+        if (localStreamRef.current && callIdRef.current && currentCall) {
+          console.log('🎙️ [CallContext] Starting call recording (receiver side)...');
+          const user = getCurrentUser();
+          startCallRecording(
+            localStreamRef.current,
+            remoteStream,
+            {
+              callId: callIdRef.current,
+              callerId: currentCall.callerId,
+              callerType: currentCall.callerType,
+              callerName: currentCall.callerName,
+              receiverId: user.id,
+              receiverType: user.type,
+              receiverName: user.name,
+            }
+          ).then((recordingId) => {
+            if (recordingId) {
+              setIsRecording(true);
+              setRecordingState(getRecordingState());
+              console.log('🎙️ [CallContext] Recording started (receiver):', recordingId);
+            }
+          }).catch((err) => {
+            console.warn('🎙️ [CallContext] Recording failed to start:', err);
+          });
         }
       });
       
@@ -874,6 +959,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         callDuration,
         localAudioRef,
         remoteAudioRef,
+        isRecording, // 🎙️ Kayıt durumu
+        recordingState, // 🎙️ Detaylı kayıt bilgisi
       }}
     >
       {children}
