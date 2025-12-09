@@ -411,12 +411,41 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       console.log('📞 [CallContext] Starting call to:', receiverId);
       
-      // 1. Mikrofon izni al
+      // 2. Mikrofon izni al
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: true, 
         video: false 
       });
       localStreamRef.current = stream;
+      
+      if (localAudioRef.current) {
+        localAudioRef.current.srcObject = stream;
+        localAudioRef.current.muted = true;
+      }
+      
+      // 🔊 1. KAYIT UYARISI SESİNİ OYNAT (9 saniye) - Kullanıcı mikrofon izninden sonra duyar
+      console.log('🔊 [CallContext] Playing call recording notice...');
+      const noticeAudio = new Audio();
+      
+      try {
+        // Supabase Storage'dan uyarı sesini al
+        const { data: noticeData } = await supabase.storage
+          .from('call-recordings')
+          .createSignedUrl('ElevenLabs_Text_to_Speech_audio (1).mp3', 60);
+        
+        if (noticeData?.signedUrl) {
+          noticeAudio.src = noticeData.signedUrl;
+          await noticeAudio.play();
+          console.log('🔊 [CallContext] Notice audio playing...');
+          
+          // 9 saniye bekle (ses bitene kadar)
+          await new Promise(resolve => setTimeout(resolve, 9000));
+          console.log('🔊 [CallContext] Notice audio finished');
+        }
+      } catch (err) {
+        console.warn('🔊 [CallContext] Notice audio failed, continuing:', err);
+        // Ses çalmazsa da aramaya devam et
+      }
       
       // Local audio'yu bağla (muted - kendi sesimizi duymayız)
       if (localAudioRef.current) {
@@ -424,7 +453,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localAudioRef.current.muted = true;
       }
       
-      // 2. WebRTC Peer oluştur (Initiator)
+      // 3. WebRTC Peer oluştur (Initiator)
       const peer = new Peer({
         initiator: true,
         trickle: false,
@@ -439,7 +468,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       peerRef.current = peer;
       
-      // 3. Signal event - SDP offer'ı veritabanına yaz
+      // 4. Signal event - SDP offer'ı veritabanına yaz
       peer.on('signal', async (data) => {
         console.log('📞 [CallContext] Got SDP offer, saving to DB...');
         
@@ -497,7 +526,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
       
-      // 4. Bağlantı kuruldu
+      // 5. Bağlantı kuruldu
       peer.on('connect', () => {
         console.log('📞 [CallContext] Peer connected!');
         setCallStatus('connected');
@@ -516,7 +545,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
       
-      // 5. Karşı tarafın sesini al ve KAYIT BAŞLAT
+      // 6. Karşı tarafın sesini al ve KAYIT BAŞLAT
       peer.on('stream', (remoteStream) => {
         console.log('📞 [CallContext] Got remote stream');
         remoteStreamRef.current = remoteStream;
@@ -526,8 +555,8 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           remoteAudioRef.current.play().catch(() => {});
         }
         
-        // 🎙️ ÇİFT AKIŞ KAYIT: HD görüşme + Opus arşiv
-        // Görüşme bağlandığında kayıt başlat
+        // 🎙️ ÇİFT AKIŞ KAYIT: HD görüşme + Opus arşiv + Uyarı Sesi
+        // Görüşme bağlandığında kayıt başlat (uyarı sesi de kaydedilecek)
         if (localStreamRef.current && callIdRef.current) {
           console.log('🎙️ [CallContext] Starting call recording...');
           startCallRecording(
@@ -554,20 +583,20 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
       
-      // 6. Hata
+      // 7. Hata
       peer.on('error', (err) => {
         console.error('📞 [CallContext] Peer error:', err);
         setError('Bağlantı hatası');
         handleCallEnded('error');
       });
       
-      // 7. Bağlantı kapandı
+      // 8. Bağlantı kapandı
       peer.on('close', () => {
         console.log('📞 [CallContext] Peer closed');
         handleCallEnded('peer_closed');
       });
       
-      // 30 saniye cevapsız timeout
+      // 9. 30 saniye cevapsız timeout
       setTimeout(() => {
         if (callStatus === 'calling' && callIdRef.current) {
           console.log('📞 [CallContext] Call timeout - no answer');
