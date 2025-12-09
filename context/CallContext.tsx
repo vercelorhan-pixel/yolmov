@@ -304,15 +304,62 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // HELPER FUNCTIONS
   // =====================================================
   
+  /**
+   * Safari uyumlu Audio oynatma helper
+   * Safari, kullanıcı etkileşimi olmadan ses çalmayı engelleyebilir
+   */
+  const createSafariCompatibleAudio = (src: string): HTMLAudioElement => {
+    const audio = new Audio();
+    
+    // Safari için webkit prefix
+    audio.setAttribute('playsinline', 'true');
+    audio.setAttribute('webkit-playsinline', 'true');
+    
+    // Preload ve format
+    audio.preload = 'auto';
+    
+    // WAV ve MP3 desteği - Safari WAV'ı tercih eder
+    const extension = src.split('.').pop()?.toLowerCase();
+    if (extension === 'wav') {
+      audio.src = src;
+    } else {
+      // MP3 fallback
+      audio.src = src;
+    }
+    
+    return audio;
+  };
+
+  /**
+   * Partner için gelen arama zil sesi
+   * mixkit-happy-bells-notification-937.wav
+   */
   const playRingtone = () => {
-    // Browser'da zil sesi (TODO: özel ses dosyası eklenebilir)
     try {
-      const audio = new Audio('/sounds/ringtone.mp3');
+      // Safari uyumlu audio oluştur
+      const audio = createSafariCompatibleAudio('/sounds/mixkit-happy-bells-notification-937.wav');
       audio.loop = true;
-      audio.play().catch(() => {});
+      audio.volume = 1.0;
+      
+      // Safari için user gesture sonrası başlatma
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('🔊 [CallContext] Ringtone autoplay blocked (Safari?):', err.message);
+          // Safari engellerse, bir sonraki user gesture'da tekrar dene
+          document.addEventListener('click', function playOnClick() {
+            audio.play().catch(() => {});
+            document.removeEventListener('click', playOnClick);
+          }, { once: true });
+        });
+      }
+      
       // Ringtone ref sakla - cevaplandığında durdur
       (window as any).__yolmov_ringtone = audio;
-    } catch {}
+      console.log('🔊 [CallContext] Ringtone started (partner incoming call)');
+    } catch (err) {
+      console.warn('🔊 [CallContext] Ringtone error:', err);
+    }
   };
   
   const stopRingtone = () => {
@@ -321,7 +368,46 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (audio) {
         audio.pause();
         audio.currentTime = 0;
+        audio.src = ''; // Safari memory cleanup
         delete (window as any).__yolmov_ringtone;
+        console.log('🔊 [CallContext] Ringtone stopped');
+      }
+    } catch {}
+  };
+
+  /**
+   * Müşteri için çağrı beklerken çalan ses
+   * mixkit-magic-marimba-2820.wav - çağrı cevaplanana kadar loop
+   */
+  const playWaitingTone = () => {
+    try {
+      const audio = createSafariCompatibleAudio('/sounds/mixkit-magic-marimba-2820.wav');
+      audio.loop = true;
+      audio.volume = 0.7;
+      
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('🔊 [CallContext] Waiting tone autoplay blocked:', err.message);
+        });
+      }
+      
+      (window as any).__yolmov_waiting_tone = audio;
+      console.log('🔊 [CallContext] Waiting tone started (customer calling)');
+    } catch (err) {
+      console.warn('🔊 [CallContext] Waiting tone error:', err);
+    }
+  };
+
+  const stopWaitingTone = () => {
+    try {
+      const audio = (window as any).__yolmov_waiting_tone;
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.src = '';
+        delete (window as any).__yolmov_waiting_tone;
+        console.log('🔊 [CallContext] Waiting tone stopped');
       }
     } catch {}
   };
@@ -353,6 +439,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isCleaningUpRef.current = true;
     
     console.log('🧹 [CallContext] cleanupCall started...');
+    
+    // 🔊 Tüm sesleri durdur
+    stopRingtone();
+    stopWaitingTone();
     
     // 🎙️ KAYDI DURDUR ve Supabase'e yükle
     // NOT: isRecording state yerine getRecordingState() kullan (daha güvenilir)
@@ -474,12 +564,12 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('🔊 [CallContext] Playing call recording notice...');
       
       try {
-        const noticeAudio = new Audio();
+        // Safari uyumlu audio oluştur
+        const noticeAudio = createSafariCompatibleAudio('/sounds/call-recording-notice.mp3');
         let audioLoaded = false;
         
         // 1. Önce public klasöründen dene
         try {
-          noticeAudio.src = '/sounds/call-recording-notice.mp3';
           await new Promise((resolve, reject) => {
             noticeAudio.oncanplaythrough = () => resolve(true);
             noticeAudio.onerror = () => reject(new Error('Local audio not found'));
@@ -551,6 +641,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('🔊 [CallContext] Notice audio failed, continuing:', err);
         // Ses çalmazsa da aramaya devam et
       }
+      
+      // 🔊 Müşteri için bekleme sesi başlat (çağrı cevaplanana kadar)
+      playWaitingTone();
       
       // Local audio'yu bağla (muted - kendi sesimizi duymayız)
       if (localAudioRef.current) {
@@ -636,6 +729,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('📞 [CallContext] Peer connected!');
         setCallStatus('connected');
         startDurationTimer();
+        
+        // 🔊 Çağrı cevaplandı - waiting tone'u durdur
+        stopWaitingTone();
         
         // DB'yi güncelle
         if (callIdRef.current) {
