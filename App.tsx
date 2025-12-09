@@ -11,6 +11,7 @@ import Footer from './components/Footer';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
+import { trackPageView } from './services/activityTracker';
 
 // Yolmov Voice - Sesli Arama Sistemi
 import { CallProvider } from './context/CallContext';
@@ -121,12 +122,25 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+// Sayfa gezinme takibi komponenti
+const PageViewTracker: React.FC = () => {
+  const location = useLocation();
+  
+  useEffect(() => {
+    // Her sayfa değişikliğinde aktivite kaydet
+    trackPageView(document.title);
+  }, [location.pathname]);
+  
+  return null;
+};
+
 function App() {
   const [isCallMinimized, setIsCallMinimized] = useState(false);
 
   return (
     <BrowserRouter>
       <CallProvider>
+        <PageViewTracker />
         <ErrorBoundary>
           <AppLayout>
             <Suspense fallback={<LoadingFallback />}>
@@ -199,6 +213,7 @@ function App() {
             <Route path="/admin/partner-vitrin" element={<AdminDashboard />} />
             <Route path="/admin/hizmet-bolgeleri" element={<AdminDashboard />} />
             <Route path="/admin/kampanyalar" element={<AdminDashboard />} />
+            <Route path="/admin/aktivite" element={<AdminDashboard />} />
             <Route path="/admin/canli-gorusmeler" element={<AdminDashboard />} />
             <Route path="/admin/cagri-kayitlari" element={<AdminDashboard />} />
             {/* Kullanıcı ve Partner detayları artık AdminDashboard içinde gösteriliyor */}

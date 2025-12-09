@@ -1,8 +1,8 @@
-import { BarChart3, Users, Shield, FileText, DollarSign, PieChart, FileCheck, Truck, Star, Wallet, History, CreditCard, UserCheck, Settings, Calculator, MapPin, Store, Gift, Activity, PhoneIncoming, Smile, ShieldCheck, Tag, Tags, Megaphone } from 'lucide-react';
+import { BarChart3, Users, Shield, FileText, DollarSign, PieChart, FileCheck, Truck, Star, Wallet, History, CreditCard, UserCheck, Settings, Calculator, MapPin, Store, Gift, Activity, PhoneIncoming, Smile, ShieldCheck, Tag, Tags, Megaphone, Eye } from 'lucide-react';
 import { AdminRole } from '../../types';
 
 export interface AdminTabDef {
-  id: 'overview' | 'reports' | 'active-calls' | 'call-logs' | 'partner-approval' | 'partners' | 'users' | 'admin-users' | 'customer-requests' | 'offers' | 'job-history' | 'fleet' | 'financial' | 'credits' | 'campaigns' | 'pricing' | 'partner-showcase' | 'service-areas' | 'documents' | 'reviews';
+  id: 'overview' | 'reports' | 'active-calls' | 'call-logs' | 'partner-approval' | 'partners' | 'users' | 'admin-users' | 'customer-requests' | 'offers' | 'job-history' | 'fleet' | 'financial' | 'credits' | 'campaigns' | 'pricing' | 'partner-showcase' | 'service-areas' | 'documents' | 'reviews' | 'activity-logs';
   label: string;
   icon: any;
   category: 'dashboard' | 'call-center' | 'management' | 'operations' | 'finance' | 'system';
@@ -37,6 +37,7 @@ export const adminTabs: AdminTabDef[] = [
   { id: 'pricing', label: 'Fiyat Listesi', icon: Tags, category: 'finance', allowedRoles: [AdminRole.SUPER_ADMIN, AdminRole.FINANCE] },
   
   // SİSTEM (System)
+  { id: 'activity-logs', label: 'Aktivite Takibi', icon: Eye, category: 'system', allowedRoles: [AdminRole.SUPER_ADMIN] },
   { id: 'partner-showcase', label: 'Vitrin Düzeni', icon: Store, category: 'system', allowedRoles: [AdminRole.SUPER_ADMIN, AdminRole.OPERATIONS] },
   { id: 'service-areas', label: 'Hizmet Bölgeleri', icon: MapPin, category: 'system', allowedRoles: [AdminRole.SUPER_ADMIN, AdminRole.OPERATIONS] },
   { id: 'documents', label: 'Belge Yönetimi', icon: FileCheck, category: 'system', allowedRoles: [AdminRole.SUPER_ADMIN, AdminRole.OPERATIONS] },

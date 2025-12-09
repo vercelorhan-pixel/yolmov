@@ -71,6 +71,7 @@ const AdminPartnerShowcaseTab = lazy(() => import('./tabs/AdminPartnerShowcaseTa
 const AdminCampaignsTab = lazy(() => import('./tabs/AdminCampaignsTab'));
 const AdminActiveCallsTab = lazy(() => import('./tabs/AdminActiveCallsTab'));
 const AdminCallLogsTab = lazy(() => import('./tabs/AdminCallLogsTab'));
+const AdminActivityLogsTab = lazy(() => import('./tabs/AdminActivityLogsTab'));
 
 // Partner destek/yardım talebi
 interface PartnerSupportRequest {
@@ -101,7 +102,7 @@ const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams<{ id?: string; vehicleId?: string }>();
-  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'active-calls' | 'call-logs' | 'partner-approval' | 'partners' | 'users' | 'admin-users' | 'customer-requests' | 'offers' | 'job-history' | 'fleet' | 'financial' | 'credits' | 'campaigns' | 'pricing' | 'partner-showcase' | 'service-areas' | 'documents' | 'reviews'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'active-calls' | 'call-logs' | 'partner-approval' | 'partners' | 'users' | 'admin-users' | 'customer-requests' | 'offers' | 'job-history' | 'fleet' | 'financial' | 'credits' | 'campaigns' | 'pricing' | 'partner-showcase' | 'service-areas' | 'documents' | 'reviews' | 'activity-logs'>('overview');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [userTypeFilter, setUserTypeFilter] = useState<'all' | 'customer' | 'partner'>('all');
   const [selectedRequest, setSelectedRequest] = useState<CustomerRequestLog | null>(null);
@@ -243,7 +244,8 @@ const AdminDashboard: React.FC = () => {
       '/admin/is-gecmisi': 'job-history',
       '/admin/admin-kullanicilari': 'admin-users',
       '/admin/hizmet-bolgeleri': 'service-areas',
-      '/admin/kampanyalar': 'campaigns'
+      '/admin/kampanyalar': 'campaigns',
+      '/admin/aktivite': 'activity-logs'
     };
     
     // Detay sayfaları için tab belirleme
@@ -299,7 +301,8 @@ const AdminDashboard: React.FC = () => {
       'job-history': '/admin/is-gecmisi',
       'admin-users': '/admin/admin-kullanicilari',
       'service-areas': '/admin/hizmet-bolgeleri',
-      'campaigns': '/admin/kampanyalar'
+      'campaigns': '/admin/kampanyalar',
+      'activity-logs': '/admin/aktivite'
     };
     const newUrl = urlMap[tabId] || '/admin';
     navigate(newUrl);
@@ -737,6 +740,9 @@ const AdminDashboard: React.FC = () => {
           )}
           {activeTab === 'campaigns' && (
             <Suspense fallback={<LoadingSkeleton rows={6} />}><AdminCampaignsTab /></Suspense>
+          )}
+          {activeTab === 'activity-logs' && (
+            <Suspense fallback={<LoadingSkeleton rows={6} />}><AdminActivityLogsTab /></Suspense>
           )}
         </main>
       </div>
@@ -1625,11 +1631,50 @@ interface CustomerRequestDetailPanelProps {
 
 const CustomerRequestDetailPanel: React.FC<CustomerRequestDetailPanelProps> = ({ requestId, onBack }) => {
   const [requestState, setRequestState] = React.useState<CustomerRequestLog | null>(null);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    const allRequests = getCustomerRequestsForAdmin();
-    const request = allRequests.find(r => r.id === requestId);
-    setRequestState(request || null);
+    const loadRequest = async () => {
+      setLoading(true);
+      try {
+        // Supabase'den talebi çek
+        const request = await supabaseApi.requests.getById(requestId);
+        if (request) {
+          // Customer bilgisini de çekelim
+          let customerName = 'Müşteri';
+          if (request.customerId) {
+            try {
+              const customer = await supabaseApi.customers.getById(request.customerId);
+              if (customer) {
+                customerName = `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || customer.email || 'Müşteri';
+              }
+            } catch (e) {
+              console.log('Customer info not found');
+            }
+          }
+
+          setRequestState({
+            id: request.id,
+            customerId: request.customerId,
+            customerName: customerName,
+            serviceType: request.serviceType,
+            location: request.fromLocation,
+            status: request.status as any,
+            createdAt: new Date(request.createdAt).toLocaleString('tr-TR'),
+            amount: request.amount,
+            description: request.description,
+            vehicleInfo: request.vehicleInfo,
+            toLocation: request.toLocation
+          });
+        }
+      } catch (err) {
+        console.error('❌ Request yüklenemedi:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadRequest();
   }, [requestId]);
 
   const request = requestState;
@@ -1641,6 +1686,20 @@ const CustomerRequestDetailPanel: React.FC<CustomerRequestDetailPanelProps> = ({
       alert('Talep durumu güncellendi.');
     }
   };
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 p-8">
+        <button onClick={onBack} className="flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4">
+          ← Geri Dön
+        </button>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+          <span className="ml-3 text-slate-600">Talep yükleniyor...</span>
+        </div>
+      </div>
+    );
+  }
 
   if (!request) {
     return (

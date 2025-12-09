@@ -1,13 +1,14 @@
 /**
  * Admin Users Management Tab
- * Admin kullanıcıları ve rol yönetimi
+ * Admin kullanıcıları ve rol yönetimi - Supabase entegrasyonu
  */
 
-import React, { useState } from 'react';
-import { Search, UserPlus, Edit, Trash2, Shield, Mail, Calendar, Eye } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, UserPlus, Edit, Trash2, Shield, Mail, Calendar, X, Loader2, Eye, EyeOff } from 'lucide-react';
 import { AdminRole } from '../../../types';
 import { useAdminFilter } from '../hooks/useAdminFilter';
 import EmptyState from '../ui/EmptyState';
+import { supabase } from '../../../services/supabase';
 
 interface AdminUser {
   id: string;
@@ -19,49 +20,31 @@ interface AdminUser {
   lastLogin?: string;
 }
 
-// MOCK DATA
-const MOCK_ADMIN_USERS: AdminUser[] = [
-  {
-    id: 'ADM-001',
-    name: 'Süper Admin',
-    email: 'admin@platform',
-    role: AdminRole.SUPER_ADMIN,
-    status: 'active',
-    createdAt: '2023-01-01',
-    lastLogin: '2024-11-27 10:30',
-  },
-  {
-    id: 'ADM-002',
-    name: 'Finans Müdürü',
-    email: 'finans@platform',
-    role: AdminRole.FINANCE,
-    status: 'active',
-    createdAt: '2023-03-15',
-    lastLogin: '2024-11-26 16:45',
-  },
-  {
-    id: 'ADM-003',
-    name: 'Operasyon Yöneticisi',
-    email: 'operasyon@platform',
-    role: AdminRole.OPERATIONS,
-    status: 'active',
-    createdAt: '2023-05-20',
-    lastLogin: '2024-11-27 09:15',
-  },
-  {
-    id: 'ADM-004',
-    name: 'Destek Ekibi',
-    email: 'destek.ekibi@platform',
-    role: AdminRole.SUPPORT,
-    status: 'active',
-    createdAt: '2023-07-10',
-    lastLogin: '2024-11-27 08:00',
-  },
-];
+interface AdminFormData {
+  name: string;
+  email: string;
+  password: string;
+  role: AdminRole;
+  status: 'active' | 'disabled';
+}
 
 const AdminUsersTab: React.FC = () => {
-  const [adminUsers, setAdminUsers] = useState<AdminUser[]>(MOCK_ADMIN_USERS);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  const [formData, setFormData] = useState<AdminFormData>({
+    name: '',
+    email: '',
+    password: '',
+    role: AdminRole.SUPPORT,
+    status: 'active'
+  });
 
   const { filtered, searchTerm, setSearchTerm, filterType, setFilterType } = useAdminFilter<AdminUser>(
     adminUsers,
@@ -70,6 +53,41 @@ const AdminUsersTab: React.FC = () => {
       statusKey: 'status'
     }
   );
+
+  // Admin kullanıcılarını yükle
+  useEffect(() => {
+    loadAdminUsers();
+  }, []);
+
+  const loadAdminUsers = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('admin_users')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      // DB'den gelen veriyi dönüştür
+      const mapped = (data || []).map((u: any) => ({
+        id: u.id,
+        name: u.name || u.email?.split('@')[0] || 'Admin',
+        email: u.email,
+        role: u.role || AdminRole.SUPPORT,
+        status: u.status || 'active',
+        createdAt: u.created_at ? new Date(u.created_at).toLocaleDateString('tr-TR') : '-',
+        lastLogin: u.last_login ? new Date(u.last_login).toLocaleString('tr-TR') : '-'
+      }));
+      
+      setAdminUsers(mapped);
+    } catch (err: any) {
+      console.error('❌ Admin kullanıcıları yüklenemedi:', err);
+      setError('Admin kullanıcıları yüklenirken hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getRoleLabel = (role: AdminRole) => {
     const labels: Record<AdminRole, string> = {
@@ -96,23 +114,164 @@ const AdminUsersTab: React.FC = () => {
     }
   };
 
-  const handleAddUser = () => {
-    alert('Admin kullanıcı ekleme özelliği yakında eklenecek.');
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      email: '',
+      password: '',
+      role: AdminRole.SUPPORT,
+      status: 'active'
+    });
+    setShowPassword(false);
+    setError(null);
   };
 
-  const handleEditUser = (user: AdminUser) => {
-    alert(`${user.name} düzenleme özelliği yakında eklenecek.`);
+  const handleAddUser = async () => {
+    if (!formData.name || !formData.email || !formData.password) {
+      setError('Tüm alanları doldurunuz');
+      return;
+    }
+    
+    if (formData.password.length < 6) {
+      setError('Şifre en az 6 karakter olmalıdır');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    
+    try {
+      // 1. Supabase Auth ile kullanıcı oluştur (email onayı olmadan direkt aktif)
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            user_type: 'admin',
+            name: formData.name
+          }
+        }
+      });
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Kullanıcı oluşturulamadı');
+
+      // 2. admin_users tablosuna kaydet
+      const { data: newAdmin, error: insertError } = await supabase
+        .from('admin_users')
+        .insert({
+          id: authData.user.id,
+          email: formData.email,
+          name: formData.name,
+          role: formData.role,
+          status: formData.status
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        // Auth user'ı silmeye çalış
+        console.error('❌ Admin insert hatası, auth user siliniyor:', insertError);
+        throw insertError;
+      }
+
+      // Listeyi güncelle
+      setAdminUsers(prev => [{
+        id: newAdmin.id,
+        name: newAdmin.name,
+        email: newAdmin.email,
+        role: newAdmin.role,
+        status: newAdmin.status,
+        createdAt: new Date().toLocaleDateString('tr-TR'),
+        lastLogin: '-'
+      }, ...prev]);
+
+      setShowAddModal(false);
+      resetForm();
+    } catch (err: any) {
+      console.error('❌ Admin ekleme hatası:', err);
+      if (err.message?.includes('already registered')) {
+        setError('Bu email adresi zaten kayıtlı');
+      } else {
+        setError(err.message || 'Admin eklenirken hata oluştu');
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDeleteUser = (user: AdminUser) => {
+  const handleEditUser = async () => {
+    if (!selectedUser) return;
+    
+    setSaving(true);
+    setError(null);
+    
+    try {
+      const { error: updateError } = await supabase
+        .from('admin_users')
+        .update({
+          name: formData.name,
+          role: formData.role,
+          status: formData.status
+        })
+        .eq('id', selectedUser.id);
+
+      if (updateError) throw updateError;
+
+      // Listeyi güncelle
+      setAdminUsers(prev => prev.map(u => 
+        u.id === selectedUser.id 
+          ? { ...u, name: formData.name, role: formData.role, status: formData.status }
+          : u
+      ));
+
+      setShowEditModal(false);
+      setSelectedUser(null);
+      resetForm();
+    } catch (err: any) {
+      console.error('❌ Admin güncelleme hatası:', err);
+      setError(err.message || 'Admin güncellenirken hata oluştu');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteUser = async (user: AdminUser) => {
     if (user.role === AdminRole.SUPER_ADMIN) {
       alert('Süper Admin kullanıcısı silinemez.');
       return;
     }
-    if (confirm(`${user.name} kullanıcısı silinecek. Onaylıyor musunuz?`)) {
-      setAdminUsers(adminUsers.filter(u => u.id !== user.id));
-      alert('Kullanıcı silindi.');
+    
+    if (!confirm(`${user.name} kullanıcısı silinecek. Onaylıyor musunuz?`)) {
+      return;
     }
+    
+    try {
+      const { error } = await supabase
+        .from('admin_users')
+        .delete()
+        .eq('id', user.id);
+
+      if (error) throw error;
+      
+      setAdminUsers(prev => prev.filter(u => u.id !== user.id));
+    } catch (err: any) {
+      console.error('❌ Admin silme hatası:', err);
+      alert('Admin silinirken hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
+    }
+  };
+
+  const openEditModal = (user: AdminUser) => {
+    setSelectedUser(user);
+    setFormData({
+      name: user.name,
+      email: user.email,
+      password: '', // Düzenleme modunda şifre değiştirmiyoruz
+      role: user.role,
+      status: user.status
+    });
+    setShowEditModal(true);
+    setError(null);
   };
 
   const stats = {
@@ -124,6 +283,15 @@ const AdminUsersTab: React.FC = () => {
     support: adminUsers.filter(u => u.role === AdminRole.SUPPORT).length,
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="animate-spin text-orange-600" size={32} />
+        <span className="ml-3 text-slate-600">Admin kullanıcıları yükleniyor...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -133,7 +301,7 @@ const AdminUsersTab: React.FC = () => {
           <p className="text-slate-500 mt-1">Sistem yöneticilerini ve rollerini yönetin</p>
         </div>
         <button
-          onClick={handleAddUser}
+          onClick={() => { resetForm(); setShowAddModal(true); }}
           className="px-6 py-3 bg-orange-600 text-white rounded-xl font-bold hover:bg-orange-700 transition-colors flex items-center gap-2"
         >
           <UserPlus size={20} />
@@ -221,7 +389,7 @@ const AdminUsersTab: React.FC = () => {
                       </div>
                       <div>
                         <p className="font-bold text-slate-900">{user.name}</p>
-                        <p className="text-xs text-slate-500">{user.id}</p>
+                        <p className="text-xs text-slate-500">{user.id.substring(0, 8)}...</p>
                       </div>
                     </div>
                   </td>
@@ -255,7 +423,7 @@ const AdminUsersTab: React.FC = () => {
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-end gap-2">
                       <button
-                        onClick={() => handleEditUser(user)}
+                        onClick={() => openEditModal(user)}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Düzenle"
                       >
@@ -313,6 +481,207 @@ const AdminUsersTab: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Add Admin Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-black text-slate-900">Yeni Admin Ekle</h2>
+              <button
+                onClick={() => { setShowAddModal(false); resetForm(); }}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Ad Soyad *</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
+                  placeholder="Admin adı"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">E-posta *</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
+                  placeholder="admin@ornek.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Şifre *</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                    className="w-full px-4 py-3 pr-12 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
+                    placeholder="En az 6 karakter"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Rol *</label>
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as AdminRole }))}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
+                >
+                  <option value={AdminRole.SUPPORT}>Destek</option>
+                  <option value={AdminRole.OPERATIONS}>Operasyon</option>
+                  <option value={AdminRole.FINANCE}>Finans</option>
+                  <option value={AdminRole.SUPER_ADMIN}>Süper Admin</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Durum</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as 'active' | 'disabled' }))}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
+                >
+                  <option value="active">Aktif</option>
+                  <option value="disabled">Devre Dışı</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => { setShowAddModal(false); resetForm(); }}
+                className="flex-1 px-4 py-3 border border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleAddUser}
+                disabled={saving}
+                className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-xl font-bold hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {saving ? <Loader2 className="animate-spin" size={18} /> : <UserPlus size={18} />}
+                {saving ? 'Ekleniyor...' : 'Admin Ekle'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Admin Modal */}
+      {showEditModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-black text-slate-900">Admin Düzenle</h2>
+              <button
+                onClick={() => { setShowEditModal(false); setSelectedUser(null); resetForm(); }}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Ad Soyad</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">E-posta</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  disabled
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-500"
+                />
+                <p className="text-xs text-slate-500 mt-1">E-posta değiştirilemez</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Rol</label>
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as AdminRole }))}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
+                  disabled={selectedUser.role === AdminRole.SUPER_ADMIN}
+                >
+                  <option value={AdminRole.SUPPORT}>Destek</option>
+                  <option value={AdminRole.OPERATIONS}>Operasyon</option>
+                  <option value={AdminRole.FINANCE}>Finans</option>
+                  <option value={AdminRole.SUPER_ADMIN}>Süper Admin</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Durum</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as 'active' | 'disabled' }))}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
+                  disabled={selectedUser.role === AdminRole.SUPER_ADMIN}
+                >
+                  <option value="active">Aktif</option>
+                  <option value="disabled">Devre Dışı</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => { setShowEditModal(false); setSelectedUser(null); resetForm(); }}
+                className="flex-1 px-4 py-3 border border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleEditUser}
+                disabled={saving}
+                className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-xl font-bold hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {saving ? <Loader2 className="animate-spin" size={18} /> : <Edit size={18} />}
+                {saving ? 'Kaydediliyor...' : 'Güncelle'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
