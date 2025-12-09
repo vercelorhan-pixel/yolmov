@@ -842,13 +842,20 @@ const PartnerSEOPage: React.FC = () => {
         {JSON.stringify({
           '@context': 'https://schema.org',
           '@type': 'JobPosting',
-          'title': `${cityData.name} ${districtData.name} ${serviceInfo.title} Partneri`,
+          'title': `${cityData.name} ${districtData.name} ${serviceInfo.title} Partneri Aranıyor`,
           'description': seoData.description,
+          'identifier': {
+            '@type': 'PropertyValue',
+            'name': 'Yolmov',
+            'value': `YOLMOV-${service.toUpperCase()}-${cityData.name.replace(/\s+/g, '')}-${districtData.name.replace(/\s+/g, '')}`
+          },
+          'datePosted': new Date().toISOString().split('T')[0],
+          'validThrough': new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           'hiringOrganization': {
             '@type': 'Organization',
-            'name': 'Yolmov',
+            'name': 'Yolmov Yol Yardım',
             'sameAs': 'https://yolmov.com',
-            'logo': 'https://yolmov.com/logo.png'
+            'logo': 'https://raw.githubusercontent.com/yosoyorhan/repo2/refs/heads/main/yolmov-logo-cutter.png'
           },
           'jobLocation': {
             '@type': 'Place',
@@ -869,14 +876,16 @@ const PartnerSEOPage: React.FC = () => {
               'unitText': 'MONTH'
             }
           },
-          'employmentType': 'CONTRACTOR',
-          'datePosted': '2025-12-08',
-          'validThrough': '2026-12-31',
+          'employmentType': ['CONTRACTOR', 'PART_TIME', 'FULL_TIME'],
           'applicantLocationRequirements': {
             '@type': 'City',
             'name': `${districtData.name}, ${cityData.name}`
           },
-          'jobBenefits': 'Anında ödeme, dijital dispeçer, boş dönüş yok, 7/24 iş fırsatı, esnek çalışma saatleri, düzenli ödeme, müşteri desteği'
+          'jobBenefits': 'Anında ödeme, dijital dispeçer sistemi, boş dönüş yok, 7/24 iş fırsatı, esnek çalışma saatleri, düzenli ödeme, profesyonel müşteri desteği',
+          'responsibilities': `${cityData.name} ${districtData.name} bölgesinde ${serviceInfo.title.toLowerCase()} hizmeti sunmak, müşteri memnuniyetini sağlamak, Yolmov platformu üzerinden gelen taleplere hızlı yanıt vermek.`,
+          'qualifications': 'Geçerli araç ruhsatı, sürücü belgesi, ilgili hizmet için gerekli ekipman ve tecrübe.',
+          'incentiveCompensation': `Aylık ${seoData.estimatedMonthlyEarnings.min.toLocaleString('tr-TR')} - ${seoData.estimatedMonthlyEarnings.max.toLocaleString('tr-TR')} TL arası kazanç potansiyeli`,
+          'industry': 'Yol Yardım ve Oto Kurtarma Hizmetleri'
         })}
       </script>
 
