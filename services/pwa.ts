@@ -6,24 +6,53 @@ export function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {
       try {
+        // 🔥 FORCE UPDATE: Unregister all old service workers first
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          await registration.unregister();
+          console.log('🗑️ Old Service Worker unregistered');
+        }
+        
+        // 🔥 Clear all caches before registering new SW
+        const cacheNames = await caches.keys();
+        for (const cacheName of cacheNames) {
+          await caches.delete(cacheName);
+          console.log('🗑️ Cache cleared:', cacheName);
+        }
+        
         // Firebase FCM Service Worker kaydı
         // NOT: firebase-messaging-sw.js ayrıca kaydediliyor, sw.js PWA için
         const registration = await navigator.serviceWorker.register('/sw.js', {
-          updateViaCache: 'none'
+          updateViaCache: 'none' // Önbelleği kullanma
         });
         
         console.log('✅ PWA Service Worker registered:', registration.scope);
         
-        // Update kontrolü
+        // 🔥 Force immediate activation
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+        
+        // Update kontrolü - her sayfa yüklendiğinde kontrol et
+        registration.update();
+        
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('🔄 New Service Worker available');
+                console.log('🔄 New Service Worker available - reloading page...');
+                // 🔥 Otomatik sayfa yenileme
+                window.location.reload();
               }
             });
           }
+        });
+        
+        // 🔥 Controller değiştiğinde sayfa yenile
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          console.log('🔄 Service Worker controller changed - reloading...');
+          window.location.reload();
         });
       } catch (error) {
         console.error('❌ Service Worker registration failed:', error);

@@ -1,5 +1,6 @@
 //   Service Worker for YOLMOV PWA
-const CACHE_VERSION = 'v1.0.3';
+// ⚠️ CACHE_VERSION otomatik güncellenir - build zamanında
+const CACHE_VERSION = 'v1.0.4-' + Date.now();
 const CACHE_NAME = `yolmov-cache-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
 
@@ -11,14 +12,15 @@ const NO_CACHE_PATTERNS = [
   '/realtime/',           // Realtime WebSocket
   'googleapis.com',       // Google APIs
   '/api/',                // Any API endpoints
-  'ipify.org'             // IP detection service
+  'ipify.org',            // IP detection service
+  '/assets/index-',       // 🔥 Main JS bundle - HİÇBİR ZAMAN CACHE'LEME!
+  '/assets/',             // 🔥 Tüm assets klasörü - her build yeni hash'ler
+  '.js'                   // 🔥 Tüm JavaScript dosyaları - network only!
 ];
 
-// Pattern for assets that should use network-first strategy
+// Pattern for assets that should use network-first strategy (artık boş - JS'ler NO_CACHE'de)
 const NETWORK_FIRST_PATTERNS = [
-  '/assets/index-',       // Main JS bundle
-  '.js',                  // All JavaScript files
-  '.html'                 // HTML files
+  '.html'                 // Sadece HTML files
 ];
 
 // Assets to cache immediately on install
@@ -62,6 +64,14 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// 🔥 Message handler - SKIP_WAITING komutu
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[Service Worker] SKIP_WAITING received - activating immediately');
+    self.skipWaiting();
+  }
+});
+
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
@@ -72,13 +82,21 @@ self.addEventListener('fetch', (event) => {
   // Skip chrome extensions
   if (url.startsWith('chrome-extension://')) return;
 
-  // NEVER cache API requests - always go to network
+  // 🔥 NEVER cache API requests & JavaScript - always go to network
   const shouldSkipCache = NO_CACHE_PATTERNS.some(pattern => url.includes(pattern));
   
   if (shouldSkipCache) {
-    // Network only for API requests
+    // Network only - NO CACHING!
     event.respondWith(
-      fetch(event.request).catch(() => {
+      fetch(event.request).catch((err) => {
+        console.error('[Service Worker] Network request failed:', url, err);
+        // JS dosyaları için offline page gösterme - hata mesajı ver
+        if (url.includes('.js')) {
+          return new Response('console.error("Failed to load module:", "' + url + '")', {
+            status: 503,
+            headers: { 'Content-Type': 'application/javascript' }
+          });
+        }
         return new Response(JSON.stringify({ error: 'Network unavailable' }), {
           status: 503,
           headers: { 'Content-Type': 'application/json' }
@@ -88,7 +106,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first for critical assets (HTML, JS)
+  // Network-first for critical assets (HTML only now - JS excluded)
   const useNetworkFirst = NETWORK_FIRST_PATTERNS.some(pattern => url.includes(pattern));
   
   if (useNetworkFirst) {
@@ -100,7 +118,7 @@ self.addEventListener('fetch', (event) => {
             return response;
           }
 
-          // Clone and cache the response
+          // Clone and cache HTML only
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
@@ -112,7 +130,7 @@ self.addEventListener('fetch', (event) => {
           // Fallback to cache on network error
           return caches.match(event.request).then((cachedResponse) => {
             if (cachedResponse) {
-              console.log('[Service Worker] Network failed, serving from cache:', url);
+              console.log('[Service Worker] Network failed, serving cached HTML:', url);
               return cachedResponse;
             }
             // Show offline page for navigation requests
