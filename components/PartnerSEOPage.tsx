@@ -861,8 +861,10 @@ const PartnerSEOPage: React.FC = () => {
             '@type': 'Place',
             'address': {
               '@type': 'PostalAddress',
+              'streetAddress': `${districtData.name} Bölgesi`,
               'addressLocality': districtData.name,
               'addressRegion': cityData.name,
+              'postalCode': '00000',
               'addressCountry': 'TR'
             }
           },

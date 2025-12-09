@@ -1,0 +1,16 @@
+import{c as l,r as c,j as e,A as m,m as g,X as p}from"./index-D7DAox1V.js";import{C as u}from"./circle-check-B6lhUXNb.js";import{I as h}from"./info-C9adh90G.js";import{C as f}from"./circle-alert-DMsa6FwB.js";/**
+ * @license lucide-react v0.469.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const T=l("CircleHelp",[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3",key:"1u773s"}],["path",{d:"M12 17h.01",key:"p32p05"}]]);/**
+ * @license lucide-react v0.469.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const y=l("Image",[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",ry:"2",key:"1m3agn"}],["circle",{cx:"9",cy:"9",r:"2",key:"af1f0g"}],["path",{d:"m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21",key:"1xmnt7"}]]);/**
+ * @license lucide-react v0.469.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const b=l("Upload",[["path",{d:"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4",key:"ih7n3h"}],["polyline",{points:"17 8 12 3 7 8",key:"t8dd8p"}],["line",{x1:"12",x2:"12",y1:"3",y2:"15",key:"widbto"}]]),w=({message:n,type:r="success",duration:t=3e3,onClose:a,isVisible:s})=>{c.useEffect(()=>{if(s&&t>0){const x=setTimeout(a,t);return()=>clearTimeout(x)}},[s,t,a]);const o=()=>{switch(r){case"success":return e.jsx(u,{className:"text-green-500",size:20});case"error":return e.jsx(f,{className:"text-red-500",size:20});case"info":return e.jsx(h,{className:"text-blue-500",size:20});case"upload":return e.jsx(b,{className:"text-brand-orange",size:20});case"processing":return e.jsx(y,{className:"text-brand-orange animate-pulse",size:20});default:return e.jsx(u,{className:"text-green-500",size:20})}},i=()=>{switch(r){case"success":return"bg-green-50 border-green-200";case"error":return"bg-red-50 border-red-200";case"info":return"bg-blue-50 border-blue-200";case"upload":case"processing":return"bg-orange-50 border-orange-200";default:return"bg-green-50 border-green-200"}},d=()=>{switch(r){case"success":return"text-green-800";case"error":return"text-red-800";case"info":return"text-blue-800";case"upload":case"processing":return"text-orange-800";default:return"text-green-800"}};return e.jsx(m,{children:s&&e.jsx(g.div,{initial:{opacity:0,y:-50,scale:.95},animate:{opacity:1,y:0,scale:1},exit:{opacity:0,y:-20,scale:.95},transition:{duration:.2,ease:"easeOut"},className:"fixed top-4 right-4 z-[10000] max-w-md",children:e.jsxs("div",{className:`${i()} border rounded-xl shadow-lg p-4 flex items-start gap-3`,children:[e.jsx("div",{className:"flex-shrink-0 mt-0.5",children:o()}),e.jsx("p",{className:`${d()} flex-1 text-sm font-medium leading-relaxed`,children:n}),e.jsx("button",{onClick:a,className:"flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors",children:e.jsx(p,{size:18})})]})})})},z=()=>{const[n,r]=c.useState({isVisible:!1,message:"",type:"success",duration:3e3}),t=c.useCallback((s,o="success",i=3e3)=>{r({isVisible:!0,message:s,type:o,duration:i})},[]),a=c.useCallback(()=>{r(s=>({...s,isVisible:!1}))},[]);return{toast:n,showToast:t,hideToast:a}};export{T as C,y as I,w as T,b as U,z as u};
