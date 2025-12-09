@@ -134,6 +134,27 @@ const PageViewTracker: React.FC = () => {
   return null;
 };
 
+// Floating Call Button - Admin ve Partner sayfalarında gizlenir
+const FloatingCallButton: React.FC = () => {
+  const location = useLocation();
+  
+  // Admin ve partner sayfalarında gösterme
+  const hideRoutes = ['/partner', '/admin'];
+  const shouldHide = hideRoutes.some(path => 
+    location.pathname === path || location.pathname.startsWith(path + '/')
+  );
+  
+  if (shouldHide) return null;
+  
+  return (
+    <CallSupportButton 
+      variant="floating" 
+      queueSlug="general-support" 
+      sourceType="header-call"
+    />
+  );
+};
+
 function App() {
   const [isCallMinimized, setIsCallMinimized] = useState(false);
 
@@ -275,12 +296,8 @@ function App() {
           />
           <CallStatusIndicator onClick={() => setIsCallMinimized(false)} />
           
-          {/* Floating Support Call Button - Tüm sayfalarda görünür */}
-          <CallSupportButton 
-            variant="floating" 
-            queueSlug="general-support" 
-            sourceType="header-call"
-          />
+          {/* Floating Support Call Button - Admin/Partner dışında görünür */}
+          <FloatingCallButton />
           
         </ErrorBoundary>
       </CallProvider>

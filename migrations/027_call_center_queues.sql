@@ -233,7 +233,7 @@ SELECT
   END as effective_status
 FROM call_agents ca
 JOIN admin_users au ON ca.admin_id = au.id
-WHERE au.is_active = true;
+WHERE au.status = 'active';
 
 -- Kuyrukta bekleyen çağrılar görünümü
 CREATE OR REPLACE VIEW v_waiting_calls AS

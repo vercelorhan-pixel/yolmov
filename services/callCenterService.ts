@@ -149,7 +149,7 @@ export async function getCallAgents(): Promise<CallAgent[]> {
           name,
           email,
           role,
-          is_active
+          status
         )
       `)
       .order('priority', { ascending: false });
