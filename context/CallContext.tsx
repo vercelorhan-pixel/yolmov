@@ -14,6 +14,7 @@ import { supabase } from '../services/supabase';
 // @ts-ignore
 import Peer from 'simple-peer';
 import { startCallRecording, stopCallRecording, getRecordingState, type RecordingState } from '../services/callRecording';
+import { generateUUID } from '../utils/uuid';
 
 // =====================================================
 // TYPES
@@ -132,7 +133,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Anonim kullanıcı için geçici ID oluştur (üye girişi gerektirmez)
     let anonymousId = localStorage.getItem('yolmov_anonymous_caller_id');
     if (!anonymousId) {
-      anonymousId = 'anon_' + crypto.randomUUID();
+      anonymousId = 'anon_' + generateUUID();
       localStorage.setItem('yolmov_anonymous_caller_id', anonymousId);
     }
     console.log('📞 [CallContext] getCurrentUser - Anonymous:', anonymousId);

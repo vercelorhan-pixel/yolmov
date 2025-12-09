@@ -4,6 +4,7 @@
  */
 
 import { supabase } from './supabase';
+import { generateUUID } from '../utils/uuid';
 
 export interface ActivityLog {
   id?: string;
@@ -88,7 +89,7 @@ function parseUserAgent(ua: string): { browser: string; os: string; deviceType: 
 function getOrCreateSessionId(): string {
   let sessionId = sessionStorage.getItem('yolmov_session_id');
   if (!sessionId) {
-    sessionId = crypto.randomUUID();
+    sessionId = generateUUID();
     sessionStorage.setItem('yolmov_session_id', sessionId);
   }
   return sessionId;
@@ -98,7 +99,7 @@ function getOrCreateSessionId(): string {
 function getAnonymousUserId(): string {
   let anonId = localStorage.getItem('yolmov_anon_id');
   if (!anonId) {
-    anonId = `anon_${crypto.randomUUID()}`;
+    anonId = `anon_${generateUUID()}`;
     localStorage.setItem('yolmov_anon_id', anonId);
   }
   return anonId;

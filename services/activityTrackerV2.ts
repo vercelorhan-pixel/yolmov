@@ -13,6 +13,7 @@
  */
 
 import { supabase } from './supabase';
+import { generateUUID } from '../utils/uuid';
 
 // Production modunda console logları gizle
 const IS_PRODUCTION = typeof window !== 'undefined' && 
@@ -332,7 +333,7 @@ function getConnectionType(): string {
 function getOrCreateSessionId(): string {
   let sessionId = sessionStorage.getItem('yolmov_session_id');
   if (!sessionId) {
-    sessionId = crypto.randomUUID();
+    sessionId = generateUUID();
     sessionStorage.setItem('yolmov_session_id', sessionId);
     isFirstPageOfSession = true;
     pagesViewedInSession = 0;
@@ -343,7 +344,7 @@ function getOrCreateSessionId(): string {
 function getAnonymousUserId(): string {
   let anonId = localStorage.getItem('yolmov_anon_id');
   if (!anonId) {
-    anonId = `anon_${crypto.randomUUID()}`;
+    anonId = `anon_${generateUUID()}`;
     localStorage.setItem('yolmov_anon_id', anonId);
   }
   return anonId;

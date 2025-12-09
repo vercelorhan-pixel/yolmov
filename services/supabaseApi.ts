@@ -12,6 +12,7 @@
  */
 
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase';
+import { generateUUID } from '../utils/uuid';
 import type {
   Customer,
   CustomerAddress,
@@ -79,7 +80,7 @@ const handleError = (error: any, operation: string) => {
  * ID oluşturucu (UUID yerine kullanılabilir)
  */
 const generateId = () => {
-  return crypto.randomUUID();
+  return generateUUID();
 };
 
 /**
