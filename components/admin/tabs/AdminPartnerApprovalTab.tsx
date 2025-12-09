@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Eye, Search, AlertCircle, Shield, Mail, Phone, Building, FileText, Calendar } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, Search, AlertCircle, Shield, Mail, Phone, Building, FileText, Calendar, ExternalLink, X, Image } from 'lucide-react';
 import supabaseApi from '../../../services/supabaseApi';
 import EmptyState from '../ui/EmptyState';
 import LoadingSkeleton from '../ui/LoadingSkeleton';
@@ -23,12 +23,23 @@ interface PendingPartner {
   status: 'pending' | 'active' | 'suspended';
   created_at: string;
   documents?: any[];
+  // Belge URL'leri
+  commercial_registry_url?: string;
+  vehicle_license_url?: string;
+  city?: string;
+  district?: string;
+}
+
+interface DocumentPreview {
+  url: string;
+  title: string;
 }
 
 const AdminPartnerApprovalTab: React.FC = () => {
   const [pendingPartners, setPendingPartners] = useState<PendingPartner[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPartner, setSelectedPartner] = useState<PendingPartner | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<DocumentPreview | null>(null);
 
   const { filtered, searchTerm, setSearchTerm } = useAdminFilter<PendingPartner>(
     pendingPartners,
@@ -252,6 +263,12 @@ const AdminPartnerApprovalTab: React.FC = () => {
                       <p className="font-bold text-slate-900">{selectedPartner.trade_registry_number}</p>
                     </div>
                   )}
+                  {selectedPartner.city && (
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1">Konum</p>
+                      <p className="font-bold text-slate-900">{selectedPartner.district}, {selectedPartner.city}</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -282,6 +299,64 @@ const AdminPartnerApprovalTab: React.FC = () => {
                 </div>
               </div>
 
+              {/* Yüklenen Belgeler */}
+              {(selectedPartner.commercial_registry_url || selectedPartner.vehicle_license_url) && (
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                    <FileText size={16} className="text-blue-600" />
+                    Yüklenen Belgeler
+                  </h4>
+                  <div className="grid grid-cols-1 gap-3">
+                    {selectedPartner.commercial_registry_url && (
+                      <button
+                        onClick={() => setPreviewDocument({
+                          url: selectedPartner.commercial_registry_url!,
+                          title: 'Ticari Sicil Belgesi'
+                        })}
+                        className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors text-left group"
+                      >
+                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                          <Image size={24} className="text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-bold text-slate-900">Ticari Sicil Belgesi</p>
+                          <p className="text-xs text-slate-500">Tıklayarak önizleyin</p>
+                        </div>
+                        <Eye size={20} className="text-blue-600" />
+                      </button>
+                    )}
+                    {selectedPartner.vehicle_license_url && (
+                      <button
+                        onClick={() => setPreviewDocument({
+                          url: selectedPartner.vehicle_license_url!,
+                          title: 'Araç Ruhsatı'
+                        })}
+                        className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl hover:bg-green-100 transition-colors text-left group"
+                      >
+                        <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                          <Image size={24} className="text-green-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-bold text-slate-900">Araç Ruhsatı</p>
+                          <p className="text-xs text-slate-500">Tıklayarak önizleyin</p>
+                        </div>
+                        <Eye size={20} className="text-green-600" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Belge yoksa uyarı */}
+              {!selectedPartner.commercial_registry_url && !selectedPartner.vehicle_license_url && (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                  <div className="flex items-center gap-2 text-yellow-700">
+                    <AlertCircle size={18} />
+                    <p className="text-sm font-medium">Bu başvuruda henüz belge yüklenmemiş.</p>
+                  </div>
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex gap-3 pt-4 border-t border-slate-200">
                 <button
@@ -305,6 +380,56 @@ const AdminPartnerApprovalTab: React.FC = () => {
                   Reddet
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document Preview Modal */}
+      {previewDocument && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4" onClick={() => setPreviewDocument(null)}>
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <h3 className="text-lg font-bold text-slate-900">{previewDocument.title}</h3>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewDocument.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <ExternalLink size={16} />
+                  Yeni Sekmede Aç
+                </a>
+                <button
+                  onClick={() => setPreviewDocument(null)}
+                  className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            <div className="p-4 bg-slate-100 flex items-center justify-center" style={{ minHeight: '500px' }}>
+              <img 
+                src={previewDocument.url} 
+                alt={previewDocument.title}
+                className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent) {
+                    parent.innerHTML = `
+                      <div class="text-center p-8">
+                        <p class="text-slate-600 mb-4">Önizleme yapılamıyor. Belgeyi yeni sekmede açın.</p>
+                        <a href="${previewDocument.url}" target="_blank" class="px-6 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 inline-block">
+                          Belgeyi Aç
+                        </a>
+                      </div>
+                    `;
+                  }
+                }}
+              />
             </div>
           </div>
         </div>
