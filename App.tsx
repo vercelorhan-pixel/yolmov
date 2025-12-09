@@ -11,7 +11,7 @@ import Footer from './components/Footer';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
-import { trackPageView } from './services/activityTracker';
+import { trackPageView } from './services/activityTrackerV2';
 
 // Yolmov Voice - Sesli Arama Sistemi
 import { CallProvider } from './context/CallContext';

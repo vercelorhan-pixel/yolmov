@@ -71,7 +71,7 @@ const AdminPartnerShowcaseTab = lazy(() => import('./tabs/AdminPartnerShowcaseTa
 const AdminCampaignsTab = lazy(() => import('./tabs/AdminCampaignsTab'));
 const AdminActiveCallsTab = lazy(() => import('./tabs/AdminActiveCallsTab'));
 const AdminCallLogsTab = lazy(() => import('./tabs/AdminCallLogsTab'));
-const AdminActivityLogsTab = lazy(() => import('./tabs/AdminActivityLogsTab'));
+const AdminActivityLogsTab = lazy(() => import('./tabs/AdminActivityLogsTabV2'));
 
 // Partner destek/yardım talebi
 interface PartnerSupportRequest {
