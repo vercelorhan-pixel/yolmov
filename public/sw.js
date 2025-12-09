@@ -1,5 +1,5 @@
 //   Service Worker for YOLMOV PWA
-const CACHE_VERSION = 'v1.0.2';
+const CACHE_VERSION = 'v1.0.3';
 const CACHE_NAME = `yolmov-cache-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
 
@@ -10,7 +10,15 @@ const NO_CACHE_PATTERNS = [
   '/rest/v1/',            // REST API endpoints
   '/realtime/',           // Realtime WebSocket
   'googleapis.com',       // Google APIs
-  '/api/'                 // Any API endpoints
+  '/api/',                // Any API endpoints
+  'ipify.org'             // IP detection service
+];
+
+// Pattern for assets that should use network-first strategy
+const NETWORK_FIRST_PATTERNS = [
+  '/assets/index-',       // Main JS bundle
+  '.js',                  // All JavaScript files
+  '.html'                 // HTML files
 ];
 
 // Assets to cache immediately on install
@@ -80,6 +88,45 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Network-first for critical assets (HTML, JS)
+  const useNetworkFirst = NETWORK_FIRST_PATTERNS.some(pattern => url.includes(pattern));
+  
+  if (useNetworkFirst) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Don't cache if not valid response
+          if (!response || response.status !== 200 || response.type === 'error') {
+            return response;
+          }
+
+          // Clone and cache the response
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+
+          return response;
+        })
+        .catch(() => {
+          // Fallback to cache on network error
+          return caches.match(event.request).then((cachedResponse) => {
+            if (cachedResponse) {
+              console.log('[Service Worker] Network failed, serving from cache:', url);
+              return cachedResponse;
+            }
+            // Show offline page for navigation requests
+            if (event.request.mode === 'navigate') {
+              return caches.match(OFFLINE_URL);
+            }
+            return new Response('Offline', { status: 503 });
+          });
+        })
+    );
+    return;
+  }
+
+  // Cache-first for other assets (images, fonts, CSS)
   event.respondWith(
     caches.match(event.request)
       .then((cachedResponse) => {

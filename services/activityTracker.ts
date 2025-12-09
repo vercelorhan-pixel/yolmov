@@ -94,6 +94,35 @@ function getOrCreateSessionId(): string {
   return sessionId;
 }
 
+// Anonim kullanıcı için kalıcı ID oluştur veya al
+function getAnonymousUserId(): string {
+  let anonId = localStorage.getItem('yolmov_anon_id');
+  if (!anonId) {
+    anonId = `anon_${crypto.randomUUID()}`;
+    localStorage.setItem('yolmov_anon_id', anonId);
+  }
+  return anonId;
+}
+
+// IP adresini al (cache ile)
+let cachedIp: string | null = null;
+async function getIpAddress(): Promise<string | null> {
+  if (cachedIp) return cachedIp;
+  
+  try {
+    const response = await fetch('https://api.ipify.org?format=json', {
+      method: 'GET',
+      cache: 'force-cache'
+    });
+    const data = await response.json();
+    cachedIp = data.ip;
+    return cachedIp;
+  } catch (e) {
+    console.warn('IP adresi alınamadı:', e);
+    return null;
+  }
+}
+
 // Mevcut kullanıcı bilgisini al
 function getCurrentUser(): { userId?: string; userType: 'customer' | 'partner' | 'admin' | 'anonymous'; userEmail?: string; userName?: string } {
   try {
@@ -149,7 +178,11 @@ function getCurrentUser(): { userId?: string; userType: 'customer' | 'partner' |
     console.warn('Error getting current user:', e);
   }
 
-  return { userType: 'anonymous' };
+  // Anonim kullanıcı için benzersiz ID oluştur
+  return { 
+    userType: 'anonymous',
+    userId: getAnonymousUserId()
+  };
 }
 
 // Aktivite kaydet
@@ -162,6 +195,9 @@ export async function trackActivity(
     const { browser, os, deviceType } = parseUserAgent(userAgent);
     const user = getCurrentUser();
     const sessionId = getOrCreateSessionId();
+    
+    // IP adresini asenkron al
+    const ipAddress = await getIpAddress();
 
     const activityLog: Record<string, any> = {
       user_id: user.userId || null,
@@ -172,6 +208,7 @@ export async function trackActivity(
       page_url: window.location.pathname,
       page_title: document.title,
       referrer: document.referrer || null,
+      ip_address: ipAddress,
       user_agent: userAgent,
       device_type: deviceType,
       browser: browser,

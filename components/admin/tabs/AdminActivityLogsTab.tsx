@@ -329,6 +329,7 @@ const AdminActivityLogsTab: React.FC = () => {
                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Kullanıcı</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Aktivite</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Sayfa</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">IP</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Cihaz</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Tarayıcı</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Tarih</th>
@@ -337,7 +338,7 @@ const AdminActivityLogsTab: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {filteredActivities.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-slate-500">
                     <Activity size={48} className="mx-auto mb-3 text-slate-300" />
                     <p className="font-medium">Aktivite bulunamadı</p>
                     <p className="text-sm">Filtreleri değiştirerek tekrar deneyin</p>
@@ -365,6 +366,11 @@ const AdminActivityLogsTab: React.FC = () => {
                     <td className="px-4 py-3">
                       <span className="text-sm text-slate-600 max-w-[200px] truncate block" title={activity.pageUrl}>
                         {activity.pageUrl || '-'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-xs font-mono text-slate-600 bg-slate-50 px-2 py-1 rounded">
+                        {activity.ipAddress || '-'}
                       </span>
                     </td>
                     <td className="px-4 py-3">

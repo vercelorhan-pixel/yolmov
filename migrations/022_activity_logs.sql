@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS activity_logs (
   referrer TEXT,
   
   -- Cihaz ve konum bilgisi
-  ip_address INET,
+  ip_address VARCHAR(45), -- IPv4 ve IPv6 için yeterli (max 45 karakter)
   user_agent TEXT,
   device_type VARCHAR(50), -- 'desktop', 'mobile', 'tablet'
   browser VARCHAR(100),
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
   user_email VARCHAR(255),
   
   session_token TEXT UNIQUE,
-  ip_address INET,
+  ip_address VARCHAR(45),
   user_agent TEXT,
   device_info JSONB,
   
