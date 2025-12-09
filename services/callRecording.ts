@@ -259,11 +259,17 @@ class CallRecordingManager {
       this.durationInterval = null;
     }
 
+    // MediaRecorder'ı durdur
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      // onstop event'ini kaldır (manuel olarak processAndUpload çağıracağız)
+      this.mediaRecorder.onstop = null;
       this.mediaRecorder.stop();
     }
 
     this.recordingState.isRecording = false;
+    
+    // 🔥 Direkt processAndUpload çağır - onstop event'ine güvenme!
+    await this.processAndUpload();
   }
 
   /**

@@ -459,7 +459,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (callError) {
           console.error('📞 [CallContext] Error creating call:', callError);
           setError('Arama başlatılamadı');
-          cleanupCall();
+          await cleanupCall();
           return;
         }
         
@@ -583,7 +583,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       console.error('📞 [CallContext] Error starting call:', err);
       setError(err.message || 'Mikrofon erişimi reddedildi');
-      cleanupCall();
+      await cleanupCall();
     }
   };
 
@@ -623,7 +623,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
               end_reason: 'insufficient_credits'
             })
             .eq('id', callIdRef.current);
-          cleanupCall();
+          await cleanupCall();
           return;
         }
         
@@ -704,7 +704,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
       if (fetchError || !callData?.sdp_offer) {
         setError('Arama verisi alınamadı');
-        cleanupCall();
+        await cleanupCall();
         return;
       }
       
@@ -801,7 +801,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       console.error('📞 [CallContext] Error answering call:', err);
       setError(err.message || 'Mikrofon erişimi reddedildi');
-      cleanupCall();
+      await cleanupCall();
     }
   };
 
@@ -861,7 +861,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
       .eq('id', callId);
     
-    cleanupCall();
+    await cleanupCall();
   };
 
   // =====================================================
@@ -884,7 +884,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
       .eq('id', callIdRef.current);
     
-    cleanupCall();
+    await cleanupCall();
   };
 
   // =====================================================
@@ -893,7 +893,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const endCall = async () => {
     if (!callIdRef.current) {
-      cleanupCall();
+      await cleanupCall();
       return;
     }
     
