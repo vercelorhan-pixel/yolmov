@@ -6,19 +6,8 @@ export function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {
       try {
-        // 🔥 FORCE UPDATE: Unregister all old service workers first
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        for (const registration of registrations) {
-          await registration.unregister();
-          console.log('🗑️ Old Service Worker unregistered');
-        }
-        
-        // 🔥 Clear all caches before registering new SW
-        const cacheNames = await caches.keys();
-        for (const cacheName of cacheNames) {
-          await caches.delete(cacheName);
-          console.log('🗑️ Cache cleared:', cacheName);
-        }
+        // Check if a refresh was already performed in this session
+        const refreshed = sessionStorage.getItem('sw-refreshed');
         
         // Firebase FCM Service Worker kaydı
         // NOT: firebase-messaging-sw.js ayrıca kaydediliyor, sw.js PWA için
@@ -28,32 +17,53 @@ export function registerServiceWorker() {
         
         console.log('✅ PWA Service Worker registered:', registration.scope);
         
-        // 🔥 Force immediate activation
-        if (registration.waiting) {
+        // Force immediate activation if there's a waiting worker
+        if (registration.waiting && !refreshed) {
           registration.waiting.postMessage({ type: 'SKIP_WAITING' });
         }
         
-        // Update kontrolü - her sayfa yüklendiğinde kontrol et
-        registration.update();
+        // Check for updates periodically (every 60 seconds when page is visible)
+        if (document.visibilityState === 'visible') {
+          registration.update();
+        }
         
+        // Handle updates found
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('🔄 New Service Worker available - reloading page...');
-                // 🔥 Otomatik sayfa yenileme
-                window.location.reload();
+                console.log('🔄 New Service Worker available');
+                
+                // Only reload if we haven't already reloaded in this session
+                if (!refreshed) {
+                  console.log('🔄 Reloading to activate new Service Worker...');
+                  sessionStorage.setItem('sw-refreshed', 'true');
+                  window.location.reload();
+                }
               }
             });
           }
         });
         
-        // 🔥 Controller değiştiğinde sayfa yenile
+        // Handle controller change (only if not already refreshed)
+        let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (refreshing || refreshed) {
+            console.log('🔄 Service Worker controller changed (already refreshed)');
+            return;
+          }
+          
           console.log('🔄 Service Worker controller changed - reloading...');
+          refreshing = true;
+          sessionStorage.setItem('sw-refreshed', 'true');
           window.location.reload();
         });
+        
+        // Clear the refresh flag after a delay to allow future updates
+        setTimeout(() => {
+          sessionStorage.removeItem('sw-refreshed');
+        }, 5000);
       } catch (error) {
         console.error('❌ Service Worker registration failed:', error);
       }
