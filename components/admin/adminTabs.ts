@@ -1,8 +1,8 @@
-import { BarChart3, Users, Shield, FileText, DollarSign, PieChart, FileCheck, Truck, Star, Wallet, History, CreditCard, UserCheck, Settings, Calculator, MapPin, Store, Gift, Activity, PhoneIncoming, Smile, ShieldCheck, Tag, Tags, Megaphone, Eye } from 'lucide-react';
+import { BarChart3, Users, Shield, FileText, DollarSign, PieChart, FileCheck, Truck, Star, Wallet, History, CreditCard, UserCheck, Settings, Calculator, MapPin, Store, Gift, Activity, PhoneIncoming, Smile, ShieldCheck, Tag, Tags, Megaphone, Eye, Headphones } from 'lucide-react';
 import { AdminRole } from '../../types';
 
 export interface AdminTabDef {
-  id: 'overview' | 'reports' | 'active-calls' | 'call-logs' | 'partner-approval' | 'partners' | 'users' | 'admin-users' | 'customer-requests' | 'offers' | 'job-history' | 'fleet' | 'financial' | 'credits' | 'campaigns' | 'pricing' | 'partner-showcase' | 'service-areas' | 'documents' | 'reviews' | 'activity-logs';
+  id: 'overview' | 'reports' | 'call-center' | 'active-calls' | 'call-logs' | 'partner-approval' | 'partners' | 'users' | 'admin-users' | 'customer-requests' | 'offers' | 'job-history' | 'fleet' | 'financial' | 'credits' | 'campaigns' | 'pricing' | 'partner-showcase' | 'service-areas' | 'documents' | 'reviews' | 'activity-logs';
   label: string;
   icon: any;
   category: 'dashboard' | 'call-center' | 'management' | 'operations' | 'finance' | 'system';
@@ -15,6 +15,7 @@ export const adminTabs: AdminTabDef[] = [
   { id: 'reports', label: 'Detaylı Raporlar', icon: PieChart, category: 'dashboard', allowedRoles: [AdminRole.SUPER_ADMIN, AdminRole.FINANCE] },
   
   // ÇAĞRI MERKEZİ (Call Center)
+  { id: 'call-center', label: 'Çağrı Merkezi', icon: Headphones, category: 'call-center', allowedRoles: [AdminRole.SUPER_ADMIN, AdminRole.SUPPORT] },
   { id: 'active-calls', label: 'Canlı Görüşmeler', icon: Activity, category: 'call-center', allowedRoles: [AdminRole.SUPER_ADMIN, AdminRole.SUPPORT] },
   { id: 'call-logs', label: 'Çağrı Kayıtları', icon: PhoneIncoming, category: 'call-center', allowedRoles: [AdminRole.SUPER_ADMIN, AdminRole.SUPPORT] },
   

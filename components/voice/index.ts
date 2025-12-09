@@ -7,3 +7,4 @@ export { default as ActiveCallUI } from './ActiveCallUI';
 export { default as OutgoingCallUI } from './OutgoingCallUI';
 export { default as CallPartnerButton } from './CallPartnerButton';
 export { default as CallStatusIndicator } from './CallStatusIndicator';
+export { default as CallSupportButton } from './CallSupportButton';

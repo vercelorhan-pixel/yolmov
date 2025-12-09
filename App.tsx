@@ -15,7 +15,7 @@ import { trackPageView } from './services/activityTrackerV2';
 
 // Yolmov Voice - Sesli Arama Sistemi
 import { CallProvider } from './context/CallContext';
-import { IncomingCallModal, ActiveCallUI, CallStatusIndicator, OutgoingCallUI } from './components/voice';
+import { IncomingCallModal, ActiveCallUI, CallStatusIndicator, OutgoingCallUI, CallSupportButton } from './components/voice';
 
 // Lazy load pages for better performance
 const AboutPage = React.lazy(() => import('./components/AboutPage'));
@@ -274,6 +274,13 @@ function App() {
             onMaximize={() => setIsCallMinimized(false)}
           />
           <CallStatusIndicator onClick={() => setIsCallMinimized(false)} />
+          
+          {/* Floating Support Call Button - Tüm sayfalarda görünür */}
+          <CallSupportButton 
+            variant="floating" 
+            queueSlug="general-support" 
+            sourceType="header-call"
+          />
           
         </ErrorBoundary>
       </CallProvider>

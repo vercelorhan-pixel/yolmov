@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { Send, Clock, MessageCircle } from 'lucide-react';
+import { Send, Clock, MessageCircle, Phone, Headphones } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { CallSupportButton } from './voice';
 
 const ContactPage: React.FC = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -22,6 +25,14 @@ const ContactPage: React.FC = () => {
   };
 
   const contactInfo = [
+    {
+      icon: Headphones,
+      title: 'Canlı Destek Hattı',
+      details: ['7/24 Sesli Destek', 'Hemen bağlanın'],
+      color: 'text-green-600',
+      bg: 'bg-green-50',
+      action: 'call'
+    },
     {
       icon: MessageCircle,
       title: 'Platform Desteği',
@@ -47,9 +58,20 @@ const ContactPage: React.FC = () => {
               Bizimle<br />
               <span className="text-brand-orange">İletişime Geçin</span>
             </h1>
-            <p className="text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed mb-8">
               Sorularınız, önerileriniz veya yardıma ihtiyacınız mı var? 7/24 buradayız!
             </p>
+            
+            {/* Quick Call Button */}
+            <CallSupportButton
+              variant="primary"
+              size="lg"
+              queueSlug="general-support"
+              sourceType="web-contact"
+              sourcePage="/iletisim"
+              label="Hemen Bizi Arayın"
+              className="inline-flex"
+            />
           </motion.div>
         </div>
       </div>
@@ -76,6 +98,19 @@ const ContactPage: React.FC = () => {
                     {detail}
                   </p>
                 ))}
+                {/* Call button for live support card */}
+                {info.action === 'call' && (
+                  <div className="mt-4">
+                    <CallSupportButton
+                      variant="secondary"
+                      size="sm"
+                      queueSlug="general-support"
+                      sourceType="web-contact"
+                      sourcePage="/iletisim"
+                      label="Hemen Ara"
+                    />
+                  </div>
+                )}
               </motion.div>
             ))}
           </div>

@@ -69,6 +69,7 @@ const AdminPartnerApprovalTab = lazy(() => import('./tabs/AdminPartnerApprovalTa
 const AdminServiceAreasTab = lazy(() => import('./tabs/AdminServiceAreasTab'));
 const AdminPartnerShowcaseTab = lazy(() => import('./tabs/AdminPartnerShowcaseTab'));
 const AdminCampaignsTab = lazy(() => import('./tabs/AdminCampaignsTab'));
+const AdminCallCenterTab = lazy(() => import('./tabs/AdminCallCenterTab'));
 const AdminActiveCallsTab = lazy(() => import('./tabs/AdminActiveCallsTab'));
 const AdminCallLogsTab = lazy(() => import('./tabs/AdminCallLogsTab'));
 const AdminActivityLogsTab = lazy(() => import('./tabs/AdminActivityLogsTabV2'));
@@ -102,7 +103,7 @@ const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams<{ id?: string; vehicleId?: string }>();
-  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'active-calls' | 'call-logs' | 'partner-approval' | 'partners' | 'users' | 'admin-users' | 'customer-requests' | 'offers' | 'job-history' | 'fleet' | 'financial' | 'credits' | 'campaigns' | 'pricing' | 'partner-showcase' | 'service-areas' | 'documents' | 'reviews' | 'activity-logs'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'call-center' | 'active-calls' | 'call-logs' | 'partner-approval' | 'partners' | 'users' | 'admin-users' | 'customer-requests' | 'offers' | 'job-history' | 'fleet' | 'financial' | 'credits' | 'campaigns' | 'pricing' | 'partner-showcase' | 'service-areas' | 'documents' | 'reviews' | 'activity-logs'>('overview');
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [userTypeFilter, setUserTypeFilter] = useState<'all' | 'customer' | 'partner'>('all');
   const [selectedRequest, setSelectedRequest] = useState<CustomerRequestLog | null>(null);
@@ -608,6 +609,14 @@ const AdminDashboard: React.FC = () => {
             <div className="space-y-6" id="panel-partner-showcase" role="tabpanel" aria-labelledby="partner-showcase">
               <Suspense fallback={<LoadingSkeleton />}>
                 <AdminPartnerShowcaseTab />
+              </Suspense>
+            </div>
+          )}
+
+          {activeTab === 'call-center' && (
+            <div className="space-y-6" id="panel-call-center" role="tabpanel" aria-labelledby="call-center">
+              <Suspense fallback={<LoadingSkeleton />}>
+                <AdminCallCenterTab />
               </Suspense>
             </div>
           )}
