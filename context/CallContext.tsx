@@ -429,11 +429,14 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       try {
         // Supabase Storage'dan uyarı sesini al
-        const { data: noticeData } = await supabase.storage
+        // NOT: Dosya adı URL-encoded olmalı (boşluklar %20)
+        const { data: noticeData, error: noticeError } = await supabase.storage
           .from('call-recordings')
-          .createSignedUrl('ElevenLabs_Text_to_Speech_audio (1).mp3', 60);
+          .createSignedUrl('notice-audio.mp3', 60);
         
-        if (noticeData?.signedUrl) {
+        if (noticeError) {
+          console.warn('🔊 [CallContext] Notice audio fetch error:', noticeError);
+        } else if (noticeData?.signedUrl) {
           noticeAudio.src = noticeData.signedUrl;
           await noticeAudio.play();
           console.log('🔊 [CallContext] Notice audio playing...');
