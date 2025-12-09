@@ -431,6 +431,29 @@ function getCurrentUser(): { userId?: string; userType: 'customer' | 'partner' |
 // ANA TAKİP FONKSİYONLARI
 // ============================================
 
+// V2 kolonları mevcut mu kontrol et (bir kez çalışır)
+let v2ColumnsAvailable: boolean | null = null;
+
+async function checkV2Columns(): Promise<boolean> {
+  if (v2ColumnsAvailable !== null) return v2ColumnsAvailable;
+  
+  try {
+    // Basit bir test sorgusu yap
+    const { error } = await supabase
+      .from('activity_logs')
+      .select('traffic_source')
+      .limit(1);
+    
+    // Eğer kolon yoksa hata döner
+    v2ColumnsAvailable = !error;
+    logger.log('🔍 V2 columns available:', v2ColumnsAvailable);
+    return v2ColumnsAvailable;
+  } catch (e) {
+    v2ColumnsAvailable = false;
+    return false;
+  }
+}
+
 export async function trackActivity(
   activityType: ActivityLog['activityType'],
   metadata?: Record<string, any>
@@ -444,6 +467,7 @@ export async function trackActivity(
     const sessionId = getOrCreateSessionId();
     const ipAddress = await getIpAddress();
 
+    // Temel log objesi (V1 - her zaman çalışır)
     const activityLog: Record<string, any> = {
       user_id: user.userId || null,
       user_type: user.userType,
@@ -459,22 +483,27 @@ export async function trackActivity(
       browser: browser,
       os: os,
       metadata: metadata || {},
-      session_id: sessionId,
-      // V2 alanları
-      traffic_source: trafficInfo.source,
-      traffic_medium: trafficInfo.medium,
-      utm_campaign: trafficInfo.campaign || null,
-      utm_source: new URLSearchParams(window.location.search).get('utm_source') || null,
-      utm_medium: new URLSearchParams(window.location.search).get('utm_medium') || null,
-      utm_term: new URLSearchParams(window.location.search).get('utm_term') || null,
-      utm_content: new URLSearchParams(window.location.search).get('utm_content') || null,
-      is_landing_page: isFirstPageOfSession,
-      screen_resolution: screenResolution,
-      viewport_size: viewportSize,
-      language: navigator.language || 'unknown',
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown',
-      connection_type: getConnectionType()
+      session_id: sessionId
     };
+
+    // V2 kolonları kontrol et ve varsa ekle
+    const hasV2 = await checkV2Columns();
+    if (hasV2) {
+      // V2 alanları
+      activityLog.traffic_source = trafficInfo.source;
+      activityLog.traffic_medium = trafficInfo.medium;
+      activityLog.utm_campaign = trafficInfo.campaign || null;
+      activityLog.utm_source = new URLSearchParams(window.location.search).get('utm_source') || null;
+      activityLog.utm_medium = new URLSearchParams(window.location.search).get('utm_medium') || null;
+      activityLog.utm_term = new URLSearchParams(window.location.search).get('utm_term') || null;
+      activityLog.utm_content = new URLSearchParams(window.location.search).get('utm_content') || null;
+      activityLog.is_landing_page = isFirstPageOfSession;
+      activityLog.screen_resolution = screenResolution;
+      activityLog.viewport_size = viewportSize;
+      activityLog.language = navigator.language || 'unknown';
+      activityLog.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown';
+      activityLog.connection_type = getConnectionType();
+    }
 
     const { error } = await supabase
       .from('activity_logs')
@@ -482,10 +511,17 @@ export async function trackActivity(
 
     if (error) {
       logger.warn('⚠️ Activity log insert failed:', error.message);
+      
+      // V2 hatasıysa tekrar V1 ile dene
+      if (error.message.includes('column') && hasV2) {
+        v2ColumnsAvailable = false;
+        logger.warn('📝 V2 columns not found, retrying with V1...');
+        return trackActivity(activityType, metadata);
+      }
     } else {
       logger.log(`📊 Activity tracked: ${activityType}`, { 
         page: activityLog.page_url, 
-        source: trafficInfo.source,
+        source: hasV2 ? trafficInfo.source : 'v1-mode',
         isLanding: isFirstPageOfSession 
       });
     }
