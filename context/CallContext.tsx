@@ -340,9 +340,24 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
   
+  // 🛡️ Çift çağrı koruması için ref
+  const isCleaningUpRef = useRef(false);
+  const hasEndedRef = useRef(false);
+  
   const cleanupCall = async () => {
+    // 🛡️ Çift çağrı koruması
+    if (isCleaningUpRef.current) {
+      console.log('🛡️ [CallContext] cleanupCall already in progress, skipping...');
+      return;
+    }
+    isCleaningUpRef.current = true;
+    
+    console.log('🧹 [CallContext] cleanupCall started...');
+    
     // 🎙️ KAYDI DURDUR ve Supabase'e yükle
-    if (isRecording) {
+    // NOT: isRecording state yerine getRecordingState() kullan (daha güvenilir)
+    const currentRecordingState = getRecordingState();
+    if (currentRecordingState.isRecording || currentRecordingState.recordingId) {
       try {
         console.log('🎙️ [CallContext] Stopping recording and uploading...');
         const result = await stopCallRecording();
@@ -358,14 +373,28 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Peer bağlantısını kapat
     if (peerRef.current) {
-      peerRef.current.destroy();
+      try {
+        peerRef.current.destroy();
+      } catch (e) {
+        // Peer zaten kapalı olabilir
+      }
       peerRef.current = null;
     }
     
     // Media stream'i durdur
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current.getTracks().forEach(track => {
+        try { track.stop(); } catch (e) {}
+      });
       localStreamRef.current = null;
+    }
+    
+    // Remote stream'i temizle
+    if (remoteStreamRef.current) {
+      remoteStreamRef.current.getTracks().forEach(track => {
+        try { track.stop(); } catch (e) {}
+      });
+      remoteStreamRef.current = null;
     }
     
     // Zil sesini durdur
@@ -383,12 +412,29 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsMuted(false);
     setCallDuration(0);
     callIdRef.current = null;
+    
+    // 🛡️ Korumayı kaldır
+    isCleaningUpRef.current = false;
+    hasEndedRef.current = false;
+    
+    console.log('🧹 [CallContext] cleanupCall completed');
   };
   
   const handleCallEnded = async (reason: string) => {
+    // 🛡️ Çift çağrı koruması
+    if (hasEndedRef.current) {
+      console.log('🛡️ [CallContext] Call already ended, ignoring:', reason);
+      return;
+    }
+    hasEndedRef.current = true;
+    
     console.log('📞 [CallContext] Call ended:', reason);
-    await cleanupCall();
+    
+    // Önce status'u ended yap
     setCallStatus('ended');
+    
+    // Cleanup yap
+    await cleanupCall();
     
     // 2 saniye sonra idle'a dön
     setTimeout(() => {
@@ -423,27 +469,83 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localAudioRef.current.muted = true;
       }
       
-      // 🔊 1. KAYIT UYARISI SESİNİ OYNAT (9 saniye) - Kullanıcı mikrofon izninden sonra duyar
+      // 🔊 1. KAYIT UYARISI SESİNİ OYNAT - Kullanıcı mikrofon izninden sonra duyar
+      // Kalite standartları gereği görüşme öncesi kullanıcıya bilgi verilmeli
       console.log('🔊 [CallContext] Playing call recording notice...');
-      const noticeAudio = new Audio();
       
       try {
-        // Supabase Storage'dan uyarı sesini al
-        // NOT: Dosya adı URL-encoded olmalı (boşluklar %20)
-        const { data: noticeData, error: noticeError } = await supabase.storage
-          .from('call-recordings')
-          .createSignedUrl('notice-audio.mp3', 60);
+        const noticeAudio = new Audio();
+        let audioLoaded = false;
         
-        if (noticeError) {
-          console.warn('🔊 [CallContext] Notice audio fetch error:', noticeError);
-        } else if (noticeData?.signedUrl) {
-          noticeAudio.src = noticeData.signedUrl;
+        // 1. Önce public klasöründen dene
+        try {
+          noticeAudio.src = '/sounds/call-recording-notice.mp3';
+          await new Promise((resolve, reject) => {
+            noticeAudio.oncanplaythrough = () => resolve(true);
+            noticeAudio.onerror = () => reject(new Error('Local audio not found'));
+            setTimeout(() => reject(new Error('Audio load timeout')), 2000);
+          });
+          audioLoaded = true;
+          console.log('🔊 [CallContext] Notice audio loaded from /sounds/');
+        } catch (localError) {
+          console.log('🔊 [CallContext] Local audio not found, trying Supabase...');
+          
+          // 2. Supabase Storage'dan dene
+          const { data: noticeData, error: noticeError } = await supabase.storage
+            .from('call-recordings')
+            .createSignedUrl('notice-audio.mp3', 60);
+          
+          if (!noticeError && noticeData?.signedUrl) {
+            noticeAudio.src = noticeData.signedUrl;
+            await new Promise((resolve, reject) => {
+              noticeAudio.oncanplaythrough = () => resolve(true);
+              noticeAudio.onerror = () => reject(new Error('Supabase audio failed'));
+              setTimeout(() => reject(new Error('Supabase audio timeout')), 3000);
+            });
+            audioLoaded = true;
+            console.log('🔊 [CallContext] Notice audio loaded from Supabase');
+          }
+        }
+        
+        if (audioLoaded) {
           await noticeAudio.play();
           console.log('🔊 [CallContext] Notice audio playing...');
           
-          // 9 saniye bekle (ses bitene kadar)
-          await new Promise(resolve => setTimeout(resolve, 9000));
+          // Ses süresine göre bekle (max 10 saniye)
+          const audioDuration = noticeAudio.duration || 9;
+          const waitTime = Math.min(audioDuration * 1000, 10000);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          
+          noticeAudio.pause();
+          noticeAudio.currentTime = 0;
           console.log('🔊 [CallContext] Notice audio finished');
+        } else {
+          // 3. FALLBACK: Web Speech API ile sesli uyarı
+          console.log('🔊 [CallContext] Using Web Speech API fallback...');
+          if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(
+              'Bu görüşme kalite standartları gereği kayıt altına alınmaktadır. Lütfen bekleyiniz.'
+            );
+            utterance.lang = 'tr-TR';
+            utterance.rate = 0.9;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+            
+            // Konuşmayı başlat ve bitene kadar bekle
+            await new Promise<void>((resolve) => {
+              utterance.onend = () => resolve();
+              utterance.onerror = () => resolve(); // Hata olsa da devam et
+              window.speechSynthesis.speak(utterance);
+              
+              // Maksimum 8 saniye bekle
+              setTimeout(resolve, 8000);
+            });
+            console.log('🔊 [CallContext] Speech synthesis finished');
+          } else {
+            console.warn('🔊 [CallContext] No audio system available');
+            // Ses sistemi yoksa sadece 2 saniye bekle (bağlantı gecikmesini maskelemek için)
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
         }
       } catch (err) {
         console.warn('🔊 [CallContext] Notice audio failed, continuing:', err);

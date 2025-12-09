@@ -251,8 +251,12 @@ class CallRecordingManager {
   /**
    * Kaydı durdur
    */
-  async stopRecording(): Promise<void> {
+  async stopRecording(): Promise<{ storagePath: string; fileSize: number } | null> {
     console.log('🎙️ [Recording] Stopping...');
+
+    // İşaretçileri temizle
+    const wasRecording = this.recordingState.isRecording;
+    this.recordingState.isRecording = false;
 
     if (this.durationInterval) {
       clearInterval(this.durationInterval);
@@ -260,16 +264,31 @@ class CallRecordingManager {
     }
 
     // MediaRecorder'ı durdur
-    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-      // onstop event'ini kaldır (manuel olarak processAndUpload çağıracağız)
+    if (this.mediaRecorder) {
+      // Event listener'ları temizle (chunk üretmeyi durdur)
+      this.mediaRecorder.ondataavailable = null;
       this.mediaRecorder.onstop = null;
-      this.mediaRecorder.stop();
+      this.mediaRecorder.onerror = null;
+      
+      if (this.mediaRecorder.state !== 'inactive') {
+        try {
+          this.mediaRecorder.stop();
+        } catch (e) {
+          console.warn('🎙️ [Recording] MediaRecorder stop error:', e);
+        }
+      }
+      this.mediaRecorder = null;
     }
-
-    this.recordingState.isRecording = false;
     
-    // 🔥 Direkt processAndUpload çağır - onstop event'ine güvenme!
-    await this.processAndUpload();
+    // Sadece kayıt yapılıyorduysa upload et
+    if (wasRecording && this.audioChunks.length > 0) {
+      // 🔥 Direkt processAndUpload çağır - onstop event'ine güvenme!
+      return await this.processAndUpload();
+    } else {
+      console.log('🎙️ [Recording] Nothing to upload');
+      this.cleanup();
+      return null;
+    }
   }
 
   /**
@@ -282,10 +301,10 @@ class CallRecordingManager {
   /**
    * Kaydı işle ve Supabase Storage'a yükle
    */
-  private async processAndUpload(): Promise<void> {
+  private async processAndUpload(): Promise<{ storagePath: string; fileSize: number } | null> {
     if (!this.options || !this.recordingState.recordingId || this.audioChunks.length === 0) {
       console.warn('🎙️ [Recording] No data to process');
-      return;
+      return null;
     }
 
     try {
@@ -352,12 +371,18 @@ class CallRecordingManager {
       console.log('📊 File size:', Math.round(fileSize / 1024), 'KB');
       console.log('📊 Compression ratio:', compressionRatio.toFixed(1), 'x');
 
+      // Sonucu sakla
+      const result = { storagePath: filePath, fileSize };
+      
       // Temizle
       this.cleanup();
+      
+      return result;
 
     } catch (error: any) {
       console.error('🎙️ [Recording] Upload failed:', error);
       await this.handleRecordingError(error.message);
+      return null;
     }
   }
 
@@ -413,7 +438,7 @@ export async function startCallRecording(
 /**
  * Çağrı kaydını durdur
  */
-export async function stopCallRecording(): Promise<void> {
+export async function stopCallRecording(): Promise<{ storagePath: string; fileSize: number } | null> {
   return recordingManager.stopRecording();
 }
 
