@@ -242,17 +242,6 @@ const AdminUsersTab: React.FC = () => {
       throw err;
     }
   };
-    } catch (err: any) {
-      console.error('❌ Admin ekleme hatası:', err);
-      if (err.message?.includes('already registered')) {
-        setError('Bu email adresi zaten kayıtlı');
-      } else {
-        setError(err.message || 'Admin eklenirken hata oluştu');
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleEditUser = async () => {
     if (!selectedUser) return;
