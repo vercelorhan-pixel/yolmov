@@ -422,9 +422,11 @@ function getCurrentUser(): { userId?: string; userType: 'customer' | 'partner' |
     logger.warn('Error getting current user:', e);
   }
 
+  // Anonim kullanıcılar için userId null - activity_logs.user_id UUID tipinde
+  // Anonim user tracking için session_id kullanılıyor
   return { 
     userType: 'anonymous',
-    userId: getAnonymousUserId()
+    userId: undefined // UUID kolonu için null gönder
   };
 }
 
@@ -468,6 +470,12 @@ export async function trackActivity(
     const sessionId = getOrCreateSessionId();
     const ipAddress = await getIpAddress();
 
+    // Anonim kullanıcı için metadata'ya anonymous_id ekle
+    const metadataWithAnonId = metadata || {};
+    if (user.userType === 'anonymous') {
+      metadataWithAnonId.anonymous_id = getAnonymousUserId();
+    }
+
     // Temel log objesi (V1 - her zaman çalışır)
     const activityLog: Record<string, any> = {
       user_id: user.userId || null,
@@ -483,7 +491,7 @@ export async function trackActivity(
       device_type: deviceType,
       browser: browser,
       os: os,
-      metadata: metadata || {},
+      metadata: metadataWithAnonId,
       session_id: sessionId
     };
 
