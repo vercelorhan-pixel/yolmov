@@ -63,6 +63,13 @@ export interface ActivityLog {
   language?: string;
   timezone?: string;
   connectionType?: string;
+  // Geolocation alanları
+  latitude?: number;
+  longitude?: number;
+  country?: string;
+  city?: string;
+  region?: string;
+  geolocationSource?: 'gps' | 'ip' | 'manual';
 }
 
 export interface UserSession {
@@ -327,6 +334,168 @@ function getConnectionType(): string {
 }
 
 // ============================================
+// GEOLOCATION - KONUM TESPİTİ
+// ============================================
+
+interface GeolocationData {
+  latitude?: number;
+  longitude?: number;
+  country?: string;
+  city?: string;
+  region?: string;
+  source: 'gps' | 'ip' | 'manual';
+}
+
+let cachedLocation: GeolocationData | null = null;
+let locationPromise: Promise<GeolocationData | null> | null = null;
+
+// IP-based geolocation (fallback)
+async function getLocationFromIP(): Promise<GeolocationData | null> {
+  try {
+    logger.log('🌍 IP-based geolocation başlatılıyor...');
+    const response = await fetch('https://ipapi.co/json/', {
+      method: 'GET',
+      cache: 'force-cache'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`IP geolocation API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    logger.log('✅ IP geolocation başarılı:', data);
+    
+    return {
+      latitude: data.latitude,
+      longitude: data.longitude,
+      country: data.country_name,
+      city: data.city,
+      region: data.region,
+      source: 'ip'
+    };
+  } catch (error) {
+    logger.warn('❌ IP geolocation başarısız:', error);
+    return null;
+  }
+}
+
+// GPS-based geolocation (öncelikli)
+async function getLocationFromGPS(): Promise<GeolocationData | null> {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    logger.warn('⚠️  Geolocation API desteklenmiyor');
+    return null;
+  }
+
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      logger.warn('⏱️  GPS timeout (5s) - IP fallback\'e geçiliyor');
+      resolve(null);
+    }, 5000); // 5 saniye timeout
+
+    logger.log('📍 GPS geolocation başlatılıyor...');
+    
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        clearTimeout(timeout);
+        const { latitude, longitude } = position.coords;
+        logger.log('✅ GPS konum alındı:', { latitude, longitude });
+        
+        try {
+          // Reverse geocoding ile şehir/ülke bilgisi al
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=tr`,
+            {
+              headers: { 'User-Agent': 'YOLMOV Activity Tracker' }
+            }
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
+            const address = data.address || {};
+            
+            resolve({
+              latitude,
+              longitude,
+              country: address.country,
+              city: address.city || address.town || address.village,
+              region: address.state || address.province,
+              source: 'gps'
+            });
+          } else {
+            // Reverse geocoding başarısız, sadece koordinatları kullan
+            resolve({
+              latitude,
+              longitude,
+              source: 'gps'
+            });
+          }
+        } catch (error) {
+          logger.warn('⚠️  Reverse geocoding başarısız:', error);
+          resolve({
+            latitude,
+            longitude,
+            source: 'gps'
+          });
+        }
+      },
+      (error) => {
+        clearTimeout(timeout);
+        logger.warn('❌ GPS geolocation başarısız:', error.message);
+        resolve(null);
+      },
+      {
+        enableHighAccuracy: false, // Hızlı sonuç için düşük hassasiyet
+        timeout: 4000,
+        maximumAge: 300000 // 5 dakika cache
+      }
+    );
+  });
+}
+
+// Konum bilgisi al (GPS önce, başarısız olursa IP)
+async function getGeolocation(): Promise<GeolocationData | null> {
+  // Cached varsa döndür (session boyunca)
+  if (cachedLocation) {
+    logger.log('📦 Cached location kullanılıyor:', cachedLocation.source);
+    return cachedLocation;
+  }
+
+  // Zaten istek yapılıyorsa bekle
+  if (locationPromise) {
+    return locationPromise;
+  }
+
+  locationPromise = (async () => {
+    try {
+      // 1. GPS'i dene
+      const gpsLocation = await getLocationFromGPS();
+      if (gpsLocation) {
+        cachedLocation = gpsLocation;
+        return gpsLocation;
+      }
+
+      // 2. GPS başarısız, IP'yi dene
+      const ipLocation = await getLocationFromIP();
+      if (ipLocation) {
+        cachedLocation = ipLocation;
+        return ipLocation;
+      }
+
+      // 3. Her iki yöntem de başarısız
+      logger.warn('⚠️  Hiçbir konum yöntemi başarılı olmadı');
+      return null;
+    } catch (error) {
+      logger.error('❌ Geolocation error:', error);
+      return null;
+    } finally {
+      locationPromise = null;
+    }
+  })();
+
+  return locationPromise;
+}
+
+// ============================================
 // SESSION VE KULLANICI YÖNETİMİ
 // ============================================
 
@@ -470,6 +639,9 @@ export async function trackActivity(
     const sessionId = getOrCreateSessionId();
     const ipAddress = await getIpAddress();
 
+    // Konum bilgisi al (GPS + IP fallback)
+    const locationData = await getGeolocation();
+
     // Anonim kullanıcı için metadata'ya anonymous_id ekle
     const metadataWithAnonId = metadata || {};
     if (user.userType === 'anonymous') {
@@ -492,7 +664,14 @@ export async function trackActivity(
       browser: browser,
       os: os,
       metadata: metadataWithAnonId,
-      session_id: sessionId
+      session_id: sessionId,
+      // Konum bilgileri (varsa)
+      latitude: locationData?.latitude || null,
+      longitude: locationData?.longitude || null,
+      country: locationData?.country || null,
+      city: locationData?.city || null,
+      region: locationData?.region || null,
+      geolocation_source: locationData?.source || null
     };
 
     // V2 kolonları kontrol et ve varsa ekle
@@ -709,7 +888,14 @@ export async function getActivityLogs(options?: {
       viewportSize: log.viewport_size,
       language: log.language,
       timezone: log.timezone,
-      connectionType: log.connection_type
+      connectionType: log.connection_type,
+      // Geolocation alanları
+      latitude: log.latitude,
+      longitude: log.longitude,
+      country: log.country,
+      city: log.city,
+      region: log.region,
+      geolocationSource: log.geolocation_source
     }));
   } catch (error) {
     logger.error('❌ Activity logs fetch failed:', error);

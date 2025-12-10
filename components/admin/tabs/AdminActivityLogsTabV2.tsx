@@ -479,6 +479,7 @@ const AdminActivityLogsTab: React.FC = () => {
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Kullanıcı</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Sayfa</th>
+                <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Konum</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Kaynak</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Referrer</th>
                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase">Süre</th>
@@ -529,6 +530,20 @@ const AdminActivityLogsTab: React.FC = () => {
                           {activity.pageUrl || '-'}
                         </span>
                       </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {activity.city || activity.country ? (
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-slate-700">
+                            {activity.city || '-'}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {activity.country || '-'}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400">-</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
@@ -736,6 +751,57 @@ const AdminActivityLogsTab: React.FC = () => {
                   <span className="text-sm">{selectedActivity.connectionType || '-'}</span>
                 </div>
               </div>
+
+              {/* Geolocation Info */}
+              {(selectedActivity.city || selectedActivity.country || selectedActivity.latitude) && (
+                <div className="bg-green-50 rounded-xl p-4">
+                  <p className="text-xs text-green-700 font-bold mb-3 flex items-center gap-2">
+                    <MapPin size={14} />
+                    Konum Bilgisi
+                    {selectedActivity.geolocationSource && (
+                      <span className="text-xs bg-green-100 px-2 py-0.5 rounded">
+                        {selectedActivity.geolocationSource === 'gps' ? '📍 GPS' : '🌐 IP'}
+                      </span>
+                    )}
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    {selectedActivity.city && (
+                      <div>
+                        <span className="text-green-700 font-medium">Şehir:</span>
+                        <p className="text-slate-900">{selectedActivity.city}</p>
+                      </div>
+                    )}
+                    {selectedActivity.region && (
+                      <div>
+                        <span className="text-green-700 font-medium">Bölge:</span>
+                        <p className="text-slate-900">{selectedActivity.region}</p>
+                      </div>
+                    )}
+                    {selectedActivity.country && (
+                      <div>
+                        <span className="text-green-700 font-medium">Ülke:</span>
+                        <p className="text-slate-900">{selectedActivity.country}</p>
+                      </div>
+                    )}
+                    {selectedActivity.latitude && selectedActivity.longitude && (
+                      <div>
+                        <span className="text-green-700 font-medium">Koordinat:</span>
+                        <p className="text-xs text-slate-900">
+                          {selectedActivity.latitude.toFixed(4)}, {selectedActivity.longitude.toFixed(4)}
+                        </p>
+                        <a 
+                          href={`https://www.google.com/maps?q=${selectedActivity.latitude},${selectedActivity.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          Haritada Gör →
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Timestamps */}
               <div className="border-t border-slate-200 pt-4">
