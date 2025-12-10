@@ -252,30 +252,36 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // SDP ANSWER DİNLEME - Arama başlatan için
   // =====================================================
   
+  // SDP answer polling ref - subscription yedeği olarak
+  const sdpPollingRef = useRef<NodeJS.Timeout | null>(null);
+  
   useEffect(() => {
     // callIdRef.current kullanmak yerine, subscription içinde GÜNCEL değeri alalım
     if (callStatus !== 'calling') return;
+    
+    const currentCallId = callIdRef.current;
+    if (!currentCallId) {
+      console.log('📞 [CallContext] No call ID yet, waiting...');
+      return;
+    }
 
-    console.log('📞 [CallContext] Setting up SDP answer listener...');
+    console.log('📞 [CallContext] Setting up SDP answer listener for call:', currentCallId);
+    
+    // Unique channel ID - her arama için farklı
+    const channelId = `call_answer_${currentCallId}_${Date.now()}`;
     
     const channel = supabase
-      .channel(`call_updates_global`)
+      .channel(channelId)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'calls',
+          filter: `id=eq.${currentCallId}`
         },
         (payload) => {
           const updatedCall = payload.new as any;
-          
-          // Bu bizim aramımız mı? REF'ten güncel ID'yi al
-          const myCurrentCallId = callIdRef.current;
-          if (!myCurrentCallId || updatedCall.id !== myCurrentCallId) {
-            console.log(`📞 [CallContext] Update received for call ${updatedCall.id}, but my call is ${myCurrentCallId} - ignoring`);
-            return;
-          }
           
           console.log('📞 [CallContext] ✅ My call updated:', updatedCall.status, 'has answer:', !!updatedCall.sdp_answer);
           
@@ -287,12 +293,18 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           // SDP Answer geldi - bağlantıyı tamamla
           if (updatedCall.sdp_answer && peerRef.current) {
-            console.log('📞 [CallContext] Got SDP answer from partner, signaling peer...');
+            console.log('📞 [CallContext] Got SDP answer, signaling peer...');
             try {
               // Peer zaten connected mı kontrol et
               if (!peerRef.current.destroyed && !peerRef.current.connected) {
                 peerRef.current.signal(updatedCall.sdp_answer);
                 console.log('📞 [CallContext] ✅ SDP answer signaled to peer!');
+                
+                // Polling'i durdur
+                if (sdpPollingRef.current) {
+                  clearInterval(sdpPollingRef.current);
+                  sdpPollingRef.current = null;
+                }
               } else {
                 console.log('📞 [CallContext] Peer already connected or destroyed, skipping signal');
               }
@@ -306,9 +318,51 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('📞 [CallContext] SDP answer subscription status:', status);
       });
 
+    // FALLBACK: Polling mekanizması - subscription çalışmazsa 2sn'de bir kontrol et
+    const pollForAnswer = async () => {
+      if (!currentCallId || callStatus !== 'calling') return;
+      
+      try {
+        const { data } = await supabase
+          .from('calls')
+          .select('sdp_answer, status')
+          .eq('id', currentCallId)
+          .single();
+        
+        if (data?.status === 'rejected' || data?.status === 'missed') {
+          handleCallEnded(data.status);
+          return;
+        }
+        
+        if (data?.sdp_answer && peerRef.current && !peerRef.current.destroyed && !peerRef.current.connected) {
+          console.log('📞 [CallContext] 🔄 Polling found SDP answer, signaling peer...');
+          peerRef.current.signal(data.sdp_answer);
+          
+          // Polling'i durdur
+          if (sdpPollingRef.current) {
+            clearInterval(sdpPollingRef.current);
+            sdpPollingRef.current = null;
+          }
+        }
+      } catch (err) {
+        console.warn('📞 [CallContext] Polling error:', err);
+      }
+    };
+    
+    // 2 saniyede bir poll et
+    sdpPollingRef.current = setInterval(pollForAnswer, 2000);
+    // İlk poll hemen yap
+    setTimeout(pollForAnswer, 500);
+
     return () => {
       console.log('📞 [CallContext] Removing SDP answer subscription');
       supabase.removeChannel(channel);
+      
+      // Polling'i temizle
+      if (sdpPollingRef.current) {
+        clearInterval(sdpPollingRef.current);
+        sdpPollingRef.current = null;
+      }
     };
   }, [callStatus]);
 

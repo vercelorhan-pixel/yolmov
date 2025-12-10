@@ -46,6 +46,38 @@ const OutgoingCallUI: React.FC = () => {
   const { callStatus, currentCall, endCall, error, isIncoming } = useCall();
   const [dots, setDots] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Partner mı kontrol et (mor tema için)
+  const isPartnerUser = (() => {
+    try {
+      const partnerData = localStorage.getItem('yolmov_partner');
+      return !!partnerData;
+    } catch {
+      return false;
+    }
+  })();
+  
+  // Admin'e mi arıyoruz?
+  const isCallingAdmin = currentCall?.receiverType === 'admin';
+  
+  // Tema renkleri - partner->admin mor, diğerleri turuncu
+  const themeColors = (isPartnerUser && isCallingAdmin) ? {
+    gradientFrom: 'from-purple-900',
+    gradientVia: 'via-purple-800',
+    accent: 'text-purple-400',
+    pulseColor: 'bg-purple-500',
+    pulseColor2: 'bg-purple-400',
+    avatarFrom: 'from-purple-600',
+    avatarTo: 'to-purple-700'
+  } : {
+    gradientFrom: 'from-orange-900',
+    gradientVia: 'via-orange-800',
+    accent: 'text-orange-400',
+    pulseColor: 'bg-orange-500',
+    pulseColor2: 'bg-orange-400',
+    avatarFrom: 'from-orange-600',
+    avatarTo: 'to-orange-700'
+  };
 
   // Fullscreen mode - arama başladığında aktif et
   useEffect(() => {
@@ -85,12 +117,12 @@ const OutgoingCallUI: React.FC = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[9999] bg-gradient-to-b from-orange-900 via-orange-800 to-slate-900 flex flex-col items-center justify-between py-12 px-6"
+        className={`fixed inset-0 z-[9999] bg-gradient-to-b ${themeColors.gradientFrom} ${themeColors.gradientVia} to-slate-900 flex flex-col items-center justify-between py-12 px-6`}
       >
         {/* Üst Kısım - Yolmov Voice Badge */}
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-full backdrop-blur-sm">
-            <Phone size={14} className="text-orange-400" />
+            <Phone size={14} className={themeColors.accent} />
             <span className="text-white/80 text-sm font-medium">Yolmov Voice</span>
           </div>
           
@@ -118,16 +150,16 @@ const OutgoingCallUI: React.FC = () => {
             <motion.div
               animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
               transition={{ duration: 1.5, repeat: Infinity }}
-              className="absolute inset-0 w-32 h-32 rounded-full bg-orange-500"
+              className={`absolute inset-0 w-32 h-32 rounded-full ${themeColors.pulseColor}`}
             />
             <motion.div
               animate={{ scale: [1, 1.3], opacity: [0.3, 0] }}
               transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
-              className="absolute inset-0 w-32 h-32 rounded-full bg-orange-400"
+              className={`absolute inset-0 w-32 h-32 rounded-full ${themeColors.pulseColor2}`}
             />
             
             {/* Avatar */}
-            <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-orange-600 to-orange-700 flex items-center justify-center text-white shadow-2xl border-4 border-white/10">
+            <div className={`relative w-32 h-32 rounded-full bg-gradient-to-br ${themeColors.avatarFrom} ${themeColors.avatarTo} flex items-center justify-center text-white shadow-2xl border-4 border-white/10`}>
               <User size={56} strokeWidth={1.5} />
             </div>
           </motion.div>
@@ -149,7 +181,7 @@ const OutgoingCallUI: React.FC = () => {
             transition={{ delay: 0.3 }}
             className="flex items-center gap-3 mt-4"
           >
-            <Loader2 size={20} className="text-orange-400 animate-spin" />
+            <Loader2 size={20} className={`${themeColors.accent} animate-spin`} />
             <span className="text-white/70 text-lg">
               {currentCall?.receiverType === 'admin' ? 'Destek hattı aranıyor' : 'Aranıyor'}{dots}
             </span>

@@ -47,6 +47,16 @@ const ActiveCallUI: React.FC<ActiveCallUIProps> = ({ minimized = false, onMinimi
     callDuration 
   } = useCall();
 
+  // Admin kullanıcısı kontrolü
+  const isAdminUser = (() => {
+    try {
+      const adminData = localStorage.getItem('yolmov_admin');
+      return !!adminData;
+    } catch {
+      return false;
+    }
+  })();
+
   // Görüşme bittiğinde fullscreen'den çık
   useEffect(() => {
     if (callStatus === 'ended' || callStatus === 'idle') {
@@ -56,6 +66,12 @@ const ActiveCallUI: React.FC<ActiveCallUIProps> = ({ minimized = false, onMinimi
 
   // Sadece bağlı durumda göster
   if (callStatus !== 'connected') return null;
+  
+  // Admin için bu UI'ı gösterme - AdminCallCenterTab kendi UI'ını kullanır
+  if (isAdminUser) {
+    console.log('📞 [ActiveCallUI] Admin user detected, hiding fullscreen UI');
+    return null;
+  }
 
   // Süreyi formatla
   const formatDuration = (seconds: number) => {
@@ -77,6 +93,44 @@ const ActiveCallUI: React.FC<ActiveCallUIProps> = ({ minimized = false, onMinimi
     ? (callerInfo?.name || callerInfo?.company_name || currentCall?.callerName || 'Arayan')
     : (currentCall?.receiverName || (currentCall?.receiverType === 'admin' ? 'Yolmov Destek' : 'Partner'));
 
+  // Partner mı kontrol et
+  const isPartnerUser = (() => {
+    try {
+      const partnerData = localStorage.getItem('yolmov_partner');
+      return !!partnerData;
+    } catch {
+      return false;
+    }
+  })();
+  
+  // Admin'e mi arıyoruz?
+  const isCallingAdmin = currentCall?.receiverType === 'admin';
+  
+  // Tema renkleri - partner->admin mor, diğerleri yeşil
+  const themeColors = (isPartnerUser && isCallingAdmin) ? {
+    bgColor: 'bg-purple-600',
+    gradientFrom: 'from-purple-900',
+    gradientVia: 'via-purple-800',
+    statusBg: 'bg-purple-500/30',
+    statusText: 'text-purple-300',
+    statusDot: 'bg-purple-400',
+    avatarPulse: 'bg-purple-400',
+    avatarFrom: 'from-purple-600',
+    avatarTo: 'to-purple-700',
+    avatarBorder: 'border-purple-400/30'
+  } : {
+    bgColor: 'bg-green-600',
+    gradientFrom: 'from-green-900',
+    gradientVia: 'via-green-800',
+    statusBg: 'bg-green-500/30',
+    statusText: 'text-green-300',
+    statusDot: 'bg-green-400',
+    avatarPulse: 'bg-green-400',
+    avatarFrom: 'from-green-600',
+    avatarTo: 'to-green-700',
+    avatarBorder: 'border-green-400/30'
+  };
+
   // Minimize mod - küçük floating bar
   if (minimized) {
     return (
@@ -85,7 +139,7 @@ const ActiveCallUI: React.FC<ActiveCallUIProps> = ({ minimized = false, onMinimi
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
         onClick={onMaximize}
-        className="fixed bottom-20 left-4 right-4 z-[9998] bg-green-600 rounded-2xl p-4 shadow-2xl cursor-pointer"
+        className={`fixed bottom-20 left-4 right-4 z-[9998] ${themeColors.bgColor} rounded-2xl p-4 shadow-2xl cursor-pointer`}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -118,7 +172,7 @@ const ActiveCallUI: React.FC<ActiveCallUIProps> = ({ minimized = false, onMinimi
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[9999] bg-gradient-to-b from-green-900 via-green-800 to-slate-900 flex flex-col items-center justify-between py-12 px-6"
+        className={`fixed inset-0 z-[9999] bg-gradient-to-b ${themeColors.gradientFrom} ${themeColors.gradientVia} to-slate-900 flex flex-col items-center justify-between py-12 px-6`}
       >
         {/* Üst Kısım - Minimize ve Süre */}
         <div className="w-full flex items-center justify-between">
@@ -129,9 +183,9 @@ const ActiveCallUI: React.FC<ActiveCallUIProps> = ({ minimized = false, onMinimi
             <Minimize2 size={20} className="text-white" />
           </button>
 
-          <div className="flex items-center gap-2 px-4 py-2 bg-green-500/30 rounded-full">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-green-300 text-sm font-medium">Görüşme Devam Ediyor</span>
+          <div className={`flex items-center gap-2 px-4 py-2 ${themeColors.statusBg} rounded-full`}>
+            <div className={`w-2 h-2 rounded-full ${themeColors.statusDot} animate-pulse`} />
+            <span className={`${themeColors.statusText} text-sm font-medium`}>Görüşme Devam Ediyor</span>
           </div>
 
           <div className="w-10" /> {/* Spacer */}
@@ -145,9 +199,9 @@ const ActiveCallUI: React.FC<ActiveCallUIProps> = ({ minimized = false, onMinimi
             <motion.div
               animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.1, 0.3] }}
               transition={{ duration: 1.5, repeat: Infinity }}
-              className="absolute inset-0 w-32 h-32 rounded-full bg-green-400"
+              className={`absolute inset-0 w-32 h-32 rounded-full ${themeColors.avatarPulse}`}
             />
-            <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-green-600 to-green-700 flex items-center justify-center text-white shadow-2xl border-4 border-green-400/30">
+            <div className={`relative w-32 h-32 rounded-full bg-gradient-to-br ${themeColors.avatarFrom} ${themeColors.avatarTo} flex items-center justify-center text-white shadow-2xl border-4 ${themeColors.avatarBorder}`}>
               <User size={56} strokeWidth={1.5} />
             </div>
           </div>
