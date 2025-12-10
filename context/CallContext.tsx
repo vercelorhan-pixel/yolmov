@@ -104,15 +104,25 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   // Mevcut kullanıcı bilgisi (admin, customer, partner veya anonim olabilir)
   const getCurrentUser = useCallback(() => {
+    // Debug: Tüm localStorage durumunu logla
+    const hasAdmin = !!localStorage.getItem('yolmov_admin');
+    const hasPartner = !!localStorage.getItem('yolmov_partner');
+    const hasCustomer = !!localStorage.getItem('yolmov_customer');
+    console.log('📞 [CallContext] getCurrentUser check - admin:', hasAdmin, 'partner:', hasPartner, 'customer:', hasCustomer);
+    
     // ÖNCE admin kontrol et (admin dashboard'daysa admin olarak işlem yap)
     const adminStr = localStorage.getItem('yolmov_admin');
     if (adminStr) {
       try {
         const admin = JSON.parse(adminStr);
-        console.log('📞 [CallContext] getCurrentUser - Admin found:', admin.id);
-        return { id: admin.id, type: 'admin' as const, name: admin.name || admin.email, email: admin.email };
+        if (admin && admin.id) {
+          console.log('📞 [CallContext] getCurrentUser - Admin found:', admin.id);
+          return { id: admin.id, type: 'admin' as const, name: admin.name || admin.email, email: admin.email };
+        }
       } catch (e) {
         console.error('📞 [CallContext] Error parsing admin data:', e);
+        // Bozuk veriyi temizle
+        localStorage.removeItem('yolmov_admin');
       }
     }
     
@@ -123,10 +133,14 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const partner = JSON.parse(partnerStr);
         // partner.id veya partner.partner_id olabilir
         const partnerId = partner.id || partner.partner_id;
-        console.log('📞 [CallContext] getCurrentUser - Partner found:', partnerId);
-        return { id: partnerId, type: 'partner' as const, name: partner.company_name || partner.name, phone: partner.phone };
+        if (partnerId) {
+          console.log('📞 [CallContext] getCurrentUser - Partner found:', partnerId);
+          return { id: partnerId, type: 'partner' as const, name: partner.company_name || partner.name, phone: partner.phone };
+        }
       } catch (e) {
         console.error('📞 [CallContext] Error parsing partner data:', e);
+        // Bozuk veriyi temizle
+        localStorage.removeItem('yolmov_partner');
       }
     }
     
@@ -135,10 +149,14 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (customerStr) {
       try {
         const customer = JSON.parse(customerStr);
-        console.log('📞 [CallContext] getCurrentUser - Customer found:', customer.id);
-        return { id: customer.id, type: 'customer' as const, name: customer.name, phone: customer.phone };
+        if (customer && customer.id) {
+          console.log('📞 [CallContext] getCurrentUser - Customer found:', customer.id);
+          return { id: customer.id, type: 'customer' as const, name: customer.name, phone: customer.phone };
+        }
       } catch (e) {
         console.error('📞 [CallContext] Error parsing customer data:', e);
+        // Bozuk veriyi temizle
+        localStorage.removeItem('yolmov_customer');
       }
     }
     
@@ -764,17 +782,30 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Mevcut call ID varsa UPDATE, yoksa INSERT
         if (callIdRef.current) {
           console.log('📞 [CallContext] Updating existing call with SDP offer:', callIdRef.current);
-          const result = await supabase
+          
+          // Önce UPDATE yap (select olmadan)
+          const updateResult = await supabase
             .from('calls')
             .update({
               sdp_offer: data,
               status: 'ringing',
             })
-            .eq('id', callIdRef.current)
-            .select()
-            .single();
-          call = result.data;
-          callError = result.error;
+            .eq('id', callIdRef.current);
+          
+          if (updateResult.error) {
+            console.error('📞 [CallContext] Update error:', updateResult.error);
+            callError = updateResult.error;
+          } else {
+            // Sonra SELECT yap
+            const selectResult = await supabase
+              .from('calls')
+              .select('*')
+              .eq('id', callIdRef.current)
+              .maybeSingle();
+            
+            call = selectResult.data;
+            callError = selectResult.error;
+          }
         } else {
           console.log('📞 [CallContext] Creating new call record...');
           const result = await supabase

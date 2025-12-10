@@ -491,6 +491,16 @@ const PartnerDashboard: React.FC = () => {
 
   const cityList = Object.keys(CITIES_WITH_DISTRICTS);
 
+  // Partner panelindeyiz - diğer rol oturumlarını temizle (çakışmayı önle)
+  useEffect(() => {
+    if (CURRENT_PARTNER_ID) {
+      localStorage.removeItem('yolmov_admin');
+      localStorage.removeItem('yolmov_customer');
+      localStorage.removeItem('yolmov_anonymous_caller_id');
+      console.log('🔐 [PartnerDashboard] Cleared other role sessions, partner active');
+    }
+  }, [CURRENT_PARTNER_ID]);
+
   // URL yönetimi için useEffect
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

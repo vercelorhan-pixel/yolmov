@@ -142,6 +142,13 @@ const AdminDashboard: React.FC = () => {
         const admin = JSON.parse(adminStr);
         if (admin?.role) {
           setCurrentAdmin(admin);
+          
+          // Admin panelindeyiz - diğer rol oturumlarını temizle (çakışmayı önle)
+          localStorage.removeItem('yolmov_partner');
+          localStorage.removeItem('yolmov_customer');
+          localStorage.removeItem('yolmov_anonymous_caller_id');
+          console.log('🔐 [AdminDashboard] Cleared other role sessions, admin active');
+          
           await loadAllData();
           return;
         }
