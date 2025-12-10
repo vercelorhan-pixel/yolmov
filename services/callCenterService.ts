@@ -845,6 +845,34 @@ export async function getCallCenterStats(): Promise<{
   }
 }
 
+/**
+ * Call ID ile çağrı bilgisini getir
+ */
+export async function getCallById(callId: string): Promise<{
+  id: string;
+  caller_id: string;
+  receiver_id: string;
+  status: string;
+} | null> {
+  try {
+    const { data, error } = await supabase
+      .from('calls')
+      .select('id, caller_id, receiver_id, status')
+      .eq('id', callId)
+      .single();
+    
+    if (error) {
+      console.error('❌ [CallCenter] getCallById error:', error);
+      return null;
+    }
+    
+    return data;
+  } catch (err) {
+    console.error('❌ [CallCenter] getCallById error:', err);
+    return null;
+  }
+}
+
 export default {
   // Queues
   getCallQueues,
@@ -866,4 +894,6 @@ export default {
   subscribeToAgentChanges,
   // Stats
   getCallCenterStats,
+  // Call Operations
+  getCallById,
 };

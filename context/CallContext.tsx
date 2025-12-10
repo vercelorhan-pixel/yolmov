@@ -102,9 +102,21 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const callIdRef = useRef<string | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Mevcut kullanıcı bilgisi (customer, partner veya anonim olabilir)
+  // Mevcut kullanıcı bilgisi (admin, customer, partner veya anonim olabilir)
   const getCurrentUser = useCallback(() => {
-    // ÖNCE partner kontrol et (partner dashboard'daysa partner olarak işlem yap)
+    // ÖNCE admin kontrol et (admin dashboard'daysa admin olarak işlem yap)
+    const adminStr = localStorage.getItem('yolmov_admin');
+    if (adminStr) {
+      try {
+        const admin = JSON.parse(adminStr);
+        console.log('📞 [CallContext] getCurrentUser - Admin found:', admin.id);
+        return { id: admin.id, type: 'admin' as const, name: admin.name || admin.email, email: admin.email };
+      } catch (e) {
+        console.error('📞 [CallContext] Error parsing admin data:', e);
+      }
+    }
+    
+    // Sonra partner kontrol et (partner dashboard'daysa partner olarak işlem yap)
     const partnerStr = localStorage.getItem('yolmov_partner');
     if (partnerStr) {
       try {

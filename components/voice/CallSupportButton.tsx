@@ -45,7 +45,7 @@ const CallSupportButton: React.FC<CallSupportButtonProps> = ({
     setError(null);
 
     try {
-      // 1. Çağrıyı kuyruğa ekle (addToQueue içinde artık agent atama yapılıyor)
+      // 1. Çağrıyı kuyruğa ekle ve uygun agent var mı kontrol et
       const assignment = await callCenterService.addToQueue({
         queueSlug,
         sourceType,
@@ -63,9 +63,19 @@ const CallSupportButton: React.FC<CallSupportButtonProps> = ({
 
       // 2. Assignment durumuna göre işlem yap
       if (assignment.status === 'ringing' && assignment.assigned_agent_id) {
-        // Agent atandı - Çağrı otomatik başlatıldı (calls tablosunda receiver_id admin_id olarak set edildi)
-        console.log('✅ [CallSupport] Call assigned to agent, ringing...');
-        setShowModal(false);
+        // Agent atandı - Şimdi WebRTC aramasını başlat!
+        // calls tablosundan receiver_id'yi al (admin_id olarak set edilmiş olmalı)
+        const callData = await callCenterService.getCallById(assignment.call_id!);
+        
+        if (callData?.receiver_id) {
+          console.log('✅ [CallSupport] Starting WebRTC call to agent:', callData.receiver_id);
+          
+          // WebRTC aramasını başlat - Bu mikrofon izni isteyecek ve OutgoingCallUI gösterecek
+          await startCall(callData.receiver_id, 'admin');
+          setShowModal(false);
+        } else {
+          throw new Error('Agent bilgisi alınamadı');
+        }
       } else {
         // Uygun agent yok - kuyrukta beklet
         setError('Şu an tüm temsilcilerimiz meşgul. Lütfen kısa bir süre sonra tekrar deneyin veya mesaj bırakın.');
