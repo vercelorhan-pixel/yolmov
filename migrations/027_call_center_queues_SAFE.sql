@@ -1,8 +1,9 @@
 -- =====================================================
 -- YOLMOV ÇAĞRI MERKEZİ (Call Center) - Veritabanı Şeması
 -- =====================================================
--- Tarih: 2024-12-09
+-- Tarih: 2024-12-10 (UPDATED - SAFE VERSION)
 -- 
+-- ⚠️ IDEMPOTENT MIGRATION - Tekrar çalıştırılabilir!
 -- Bu migration çağrı merkezi altyapısını oluşturur:
 -- 1. Çağrı Havuzları (Call Queues) - Farklı çağrı türleri için havuzlar
 -- 2. Çağrı Ajanları (Call Agents) - Adminler, operatörler
@@ -44,7 +45,7 @@ CREATE TABLE IF NOT EXISTS call_queues (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Varsayılan havuzları oluştur
+-- Varsayılan havuzları oluştur (sadece yoksa)
 INSERT INTO call_queues (name, slug, description, queue_type, priority) VALUES
   ('Genel Destek', 'general-support', 'Web sitesi ve genel sorular için destek hattı', 'general', 1),
   ('Partner Aramaları', 'partner-calls', 'Müşteriden partnere direkt aramalar', 'partner', 2),
@@ -229,7 +230,7 @@ CREATE TRIGGER call_queue_assignments_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_call_center_timestamp();
 
 -- =====================================================
--- 8. VIEWS
+-- 8. VIEWS - IDEMPOTENT
 -- =====================================================
 
 -- Aktif çağrı ajanları görünümü
@@ -261,5 +262,8 @@ WHERE cqa.status = 'waiting'
 ORDER BY cq.priority DESC, cqa.queued_at ASC;
 
 -- =====================================================
--- TAMAMLANDI
+-- ✅ TAMAMLANDI - SAFE & IDEMPOTENT
+-- =====================================================
+-- Bu migration tekrar çalıştırılabilir (idempotent)
+-- Mevcut yapıları bozmaz, sadece eksikleri tamamlar
 -- =====================================================
