@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { MapPin, Phone, Clock, Star, Shield, ChevronRight, Home, Search, Users, TrendingUp, MessageCircle, Calculator, ChevronDown, ChevronUp, Activity, Zap } from 'lucide-react';
+import { MapPin, Phone, Clock, Star, Shield, ChevronRight, Home, Search, Users, TrendingUp, MessageCircle, Calculator, ChevronDown, ChevronUp, Activity, Zap, Check } from 'lucide-react';
 import EmergencyFloatingButton from './shared/EmergencyFloatingButton';
 import SEOSearchWidget from './shared/SEOSearchWidget';
 import { getCityBySlug, getDistrictBySlug, getServiceInfo, generateSEOMetadata, ServiceType } from '../lib/seoData';
@@ -261,23 +261,35 @@ const SEOServicePage: React.FC = () => {
             />
           </div>
 
-          <div className="flex flex-wrap gap-4 mt-6">
-            <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
-              <Clock size={18} />
-              <span className="font-semibold">15 Dakikada Varış</span>
+          <div className="flex flex-wrap items-center justify-between gap-4 mt-6">
+            {/* Güven Badge'leri */}
+            <div className="flex flex-wrap gap-4">
+              <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
+                <Clock size={18} />
+                <span className="font-semibold">15 Dakikada Varış</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
+                <Shield size={18} />
+                <span className="font-semibold">7/24 Hizmet</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
+                <Star size={18} fill="currentColor" />
+                <span className="font-semibold">Güvenilir Partnerler</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
+                <Users size={18} />
+                <span className="font-semibold">{Math.floor(Math.random() * 500) + 1000}+ Kullanıcı</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
-              <Shield size={18} />
-              <span className="font-semibold">7/24 Hizmet</span>
-            </div>
-            <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
-              <Star size={18} fill="currentColor" />
-              <span className="font-semibold">Güvenilir Partnerler</span>
-            </div>
-            <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
-              <Users size={18} />
-              <span className="font-semibold">{Math.floor(Math.random() * 500) + 1000}+ Kullanıcı</span>
-            </div>
+
+            {/* Partner Kayıt CTA - Hero'da */}
+            <Link
+              to="/partner-basvuru"
+              className="flex items-center gap-2 bg-white/90 hover:bg-white px-6 py-3 rounded-full font-bold text-brand-orange transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              <TrendingUp size={20} />
+              <span>Hizmet Veren misiniz? Ücretsiz Kayıt</span>
+            </Link>
           </div>
         </div>
       </div>
@@ -286,13 +298,18 @@ const SEOServicePage: React.FC = () => {
       <div className="container mx-auto px-4 -mt-8 relative z-20">
         <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-3xl p-6 md:p-8 shadow-2xl border-4 border-white">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="text-center md:text-left">
-              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
-                🚨 Acil Yardım mı Lazım?
-              </h2>
-              <p className="text-green-50 text-lg">
-                {districtData.name}'de şu anda <span className="font-bold">{activePartnersCount} aktif servis</span> hizmet verebilir
-              </p>
+            <div className="text-center md:text-left flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                <Activity size={28} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold text-white">
+                  Acil Yardım mı Lazım?
+                </h2>
+                <p className="text-green-50 text-lg mt-1">
+                  {districtData.name}'de şu anda <span className="font-bold">{activePartnersCount} aktif servis</span> hizmet verebilir
+                </p>
+              </div>
             </div>
             <button
               onClick={() => {
@@ -313,9 +330,17 @@ const SEOServicePage: React.FC = () => {
               HEMEN ÇAĞIR
             </button>
           </div>
-          <p className="text-xs text-green-100 mt-4 text-center">
-            💳 Kredi kartı gerektirmez • Önce fiyat görün, sonra karar verin • 15 dakikada yanınızda
-          </p>
+          <div className="flex items-center justify-center gap-4 mt-4 text-xs text-green-100">
+            <div className="flex items-center gap-1">
+              <Shield size={14} />
+              <span>Kredi kartı gerektirmez</span>
+            </div>
+            <span>•</span>
+            <div className="flex items-center gap-1">
+              <Clock size={14} />
+              <span>15 dakikada yanınızda</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -341,23 +366,23 @@ const SEOServicePage: React.FC = () => {
                 </h3>
                 <ul className="space-y-2 text-slate-700">
                   <li className="flex items-start gap-2">
-                    <span className="text-green-600 mt-1">✓</span>
+                    <Check size={20} className="text-green-600 mt-0.5 flex-shrink-0" />
                     <span><strong>{districtData.name} içinde</strong> ortalama 15 dakikada varış garantisi</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="text-green-600 mt-1">✓</span>
+                    <Check size={20} className="text-green-600 mt-0.5 flex-shrink-0" />
                     <span>Sabit ve şeffaf fiyat - <strong>gizli ücret yok</strong></span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="text-green-600 mt-1">✓</span>
+                    <Check size={20} className="text-green-600 mt-0.5 flex-shrink-0" />
                     <span><strong>7/24 {cityData.name}</strong> geneli aktif nöbetçi servisler</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="text-green-600 mt-1">✓</span>
+                    <Check size={20} className="text-green-600 mt-0.5 flex-shrink-0" />
                     <span>Doğrulanmış ve <strong>sigortalı partnerler</strong></span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="text-green-600 mt-1">✓</span>
+                    <Check size={20} className="text-green-600 mt-0.5 flex-shrink-0" />
                     <span>Canlı konum takibi ve <strong>anlık iletişim</strong></span>
                   </li>
                 </ul>
@@ -735,6 +760,63 @@ const SEOServicePage: React.FC = () => {
           ]
         })}
       </script>
+
+      {/* 🤖 SEO BOT CRAWLING - Diğer İller & Hizmetler Link Section */}
+      <div className="bg-gradient-to-b from-slate-50 to-white py-16 border-t border-slate-200">
+        <div className="container mx-auto px-4">
+          <div className="grid md:grid-cols-2 gap-12">
+            {/* Diğer İller */}
+            <div>
+              <div className="flex items-center gap-3 mb-6">
+                <MapPin size={28} className="text-brand-orange" />
+                <h3 className="text-2xl font-bold text-slate-900">Diğer İllerde {serviceInfo.title}</h3>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {['istanbul', 'ankara', 'izmir', 'bursa', 'antalya', 'adana', 'gaziantep', 'konya', 'mersin'].map(citySlug => {
+                  const cityObj = getCityBySlug(citySlug);
+                  if (!cityObj) return null;
+                  return (
+                    <Link
+                      key={citySlug}
+                      to={`/${service}/${citySlug}`}
+                      className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-slate-200 hover:border-brand-orange hover:bg-orange-50 transition-all text-sm text-slate-700 hover:text-brand-orange"
+                    >
+                      <MapPin size={14} />
+                      <span>{cityObj.name} {serviceInfo.shortTitle}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Tüm Hizmetler */}
+            <div>
+              <div className="flex items-center gap-3 mb-6">
+                <Search size={28} className="text-brand-orange" />
+                <h3 className="text-2xl font-bold text-slate-900">{cityData.name} Tüm Hizmetler</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                {(['cekici', 'aku', 'lastik', 'yakit', 'anahtar'] as ServiceType[]).map(serviceSlug => {
+                  const svc = getServiceInfo(serviceSlug);
+                  return (
+                    <Link
+                      key={serviceSlug}
+                      to={`/${serviceSlug}/${cityData.slug}/${districtData.slug}`}
+                      className="flex items-center gap-3 px-4 py-3 bg-white rounded-lg border border-slate-200 hover:border-brand-orange hover:bg-orange-50 transition-all"
+                    >
+                      <span className="text-2xl">{svc.icon}</span>
+                      <div>
+                        <div className="font-semibold text-slate-900">{svc.title}</div>
+                        <div className="text-xs text-slate-500">{svc.description}</div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Emergency Floating Button */}
       <EmergencyFloatingButton
