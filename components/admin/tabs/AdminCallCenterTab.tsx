@@ -356,6 +356,33 @@ const AdminCallCenterTab: React.FC = () => {
       console.error('Reject call error:', err);
     }
   };
+
+  const handleEndCall = async (assignment: CallQueueAssignment) => {
+    if (!assignment.call_id) return;
+    
+    try {
+      // 1. End the call in call_center service
+      const success = await callCenterService.endCall(assignment.call_id);
+      
+      if (success) {
+        // 2. Update assignment status
+        await callCenterService.updateQueueAssignmentStatus(assignment.id, 'completed');
+        
+        // 3. Set agent as available
+        if (currentAdmin) {
+          await callCenterService.setAgentCurrentCall(currentAdmin.id, null);
+        }
+        
+        // 4. Refresh data
+        loadData();
+      } else {
+        setError('Çağrı sonlandırılamadı. Lütfen tekrar deneyin.');
+      }
+    } catch (err) {
+      console.error('❌ End call error:', err);
+      setError('Çağrı sonlandırılırken hata oluştu.');
+    }
+  };
   
   // =====================================================
   // RENDER
@@ -583,6 +610,20 @@ USING (admin_id = auth.uid() OR auth.role() = 'service_role');`}
                             title="Reddet"
                           >
                             <PhoneOff size={18} />
+                          </button>
+                        </div>
+                      ) : call.status === 'connected' ? (
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 text-green-600 mr-2">
+                            <PhoneCall size={18} className="animate-pulse" />
+                            <span className="text-sm font-medium">Görüşmede</span>
+                          </div>
+                          <button
+                            onClick={() => handleEndCall(call)}
+                            className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                            title="Çağrıyı Sonlandır"
+                          >
+                            <XCircle size={18} />
                           </button>
                         </div>
                       ) : (

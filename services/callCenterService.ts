@@ -873,6 +873,33 @@ export async function getCallById(callId: string): Promise<{
   }
 }
 
+/**
+ * Aktif çağrıyı sonlandır
+ * @param callId - Sonlandırılacak çağrının ID'si
+ */
+export async function endCall(callId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('calls')
+      .update({
+        status: 'ended',
+        ended_at: new Date().toISOString()
+      })
+      .eq('id', callId);
+
+    if (error) {
+      console.error('❌ [CallCenter] endCall error:', error);
+      return false;
+    }
+
+    console.log('✅ [CallCenter] Call ended successfully:', callId);
+    return true;
+  } catch (err) {
+    console.error('❌ [CallCenter] endCall error:', err);
+    return false;
+  }
+}
+
 export default {
   // Queues
   getCallQueues,
@@ -896,4 +923,5 @@ export default {
   getCallCenterStats,
   // Call Operations
   getCallById,
+  endCall,
 };
