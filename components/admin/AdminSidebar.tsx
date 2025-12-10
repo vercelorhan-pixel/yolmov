@@ -10,9 +10,14 @@ interface AdminSidebarProps {
   role: AdminRole;
   mobile?: boolean;
   onCloseMobile?: () => void;
+  user?: {
+    name: string;
+    email: string;
+    avatar_url?: string;
+  };
 }
 
-const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeTab, onSelectTab, onLogout, role, mobile, onCloseMobile }) => {
+const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeTab, onSelectTab, onLogout, role, mobile, onCloseMobile, user }) => {
   const categories = [
     { id: 'dashboard', label: 'Kokpit', color: 'text-slate-500' },
     { id: 'call-center', label: 'Çağrı Merkezi', color: 'text-green-500', badge: 'CANLI' },
@@ -93,12 +98,18 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeTab, onSelectTab, onL
       
       <div className="p-4 border-t border-slate-800 flex-shrink-0">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden">
-            <img src="https://i.pravatar.cc/150?img=60" alt="Admin" />
+          <div className="w-10 h-10 rounded-full bg-slate-700 overflow-hidden flex items-center justify-center">
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="Admin" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-lg font-bold text-slate-300">
+                {user?.name?.charAt(0).toUpperCase() || 'A'}
+              </span>
+            )}
           </div>
-          <div>
-            <p className="text-sm font-bold">Admin User</p>
-            <p className="text-xs text-slate-400">admin@platform</p>
+          <div className="overflow-hidden">
+            <p className="text-sm font-bold truncate">{user?.name || 'Admin User'}</p>
+            <p className="text-xs text-slate-400 truncate" title={user?.email}>{user?.email || 'admin@platform'}</p>
           </div>
         </div>
         <button

@@ -141,7 +141,61 @@ const AdminUsersTab: React.FC = () => {
     setError(null);
     
     try {
-      // 1. Supabase Auth ile kullanıcı oluştur (email onayı olmadan direkt aktif)
+      // 1. Serverless function ile kullanıcı oluştur (Email onayı gerektirmez)
+      // Bu yöntem Service Role Key kullanarak direkt onaylanmış kullanıcı oluşturur
+      const response = await fetch('/api/create-admin-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+          role: formData.role
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        // Fallback: Eğer API çalışmazsa (örn: local dev env vars yoksa) eski yöntemi dene
+        if (result.error?.includes('Missing Supabase keys') || response.status === 404) {
+          console.warn('⚠️ API kullanılamadı, client-side signUp deneniyor...');
+          await fallbackClientSignUp();
+          return;
+        }
+        throw new Error(result.error || 'Admin oluşturulamadı');
+      }
+      
+      const newAdmin = result.user;
+
+      // Listeyi güncelle
+      setAdminUsers(prev => [{
+        id: newAdmin.id,
+        name: newAdmin.name,
+        email: newAdmin.email,
+        role: newAdmin.role,
+        status: newAdmin.status,
+        createdAt: new Date().toLocaleDateString('tr-TR'),
+        lastLogin: '-'
+      }, ...prev]);
+
+      setShowAddModal(false);
+      resetForm();
+    } catch (err: any) {
+      console.error('❌ Admin ekleme hatası:', err);
+      if (err.message?.includes('already registered')) {
+        setError('Bu email adresi zaten kayıtlı');
+      } else {
+        setError(err.message || 'Admin eklenirken hata oluştu');
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Fallback: Client-side kayıt (Email onayı gerektirebilir)
+  const fallbackClientSignUp = async () => {
+    try {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -169,13 +223,8 @@ const AdminUsersTab: React.FC = () => {
         .select()
         .single();
 
-      if (insertError) {
-        // Auth user'ı silmeye çalış
-        console.error('❌ Admin insert hatası, auth user siliniyor:', insertError);
-        throw insertError;
-      }
+      if (insertError) throw insertError;
 
-      // Listeyi güncelle
       setAdminUsers(prev => [{
         id: newAdmin.id,
         name: newAdmin.name,
@@ -188,6 +237,11 @@ const AdminUsersTab: React.FC = () => {
 
       setShowAddModal(false);
       resetForm();
+      alert('Kullanıcı oluşturuldu ancak email onayı gerekebilir (Local Dev Modu).');
+    } catch (err: any) {
+      throw err;
+    }
+  };
     } catch (err: any) {
       console.error('❌ Admin ekleme hatası:', err);
       if (err.message?.includes('already registered')) {

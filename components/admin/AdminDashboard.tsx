@@ -109,7 +109,8 @@ const AdminDashboard: React.FC = () => {
   const [selectedRequest, setSelectedRequest] = useState<CustomerRequestLog | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const currentAdminRole: AdminRole = AdminRole.SUPER_ADMIN;
+  const [currentAdmin, setCurrentAdmin] = useState<any>(null);
+  const currentAdminRole: AdminRole = currentAdmin?.role || AdminRole.SUPPORT;
   
   // State for dynamic data
   const [users, setUsers] = useState<User[]>([]);
@@ -139,6 +140,7 @@ const AdminDashboard: React.FC = () => {
       if (adminStr) {
         const admin = JSON.parse(adminStr);
         if (admin?.role) {
+          setCurrentAdmin(admin);
           await loadAllData();
           return;
         }
@@ -337,18 +339,28 @@ const AdminDashboard: React.FC = () => {
         <AdminSidebar
           activeTab={activeTab}
           onSelectTab={handleTabChange}
-          onLogout={() => navigate('/')}
+          onLogout={() => {
+            localStorage.removeItem('yolmov_admin');
+            localStorage.removeItem('yolmov-auth-session');
+            navigate('/');
+          }}
           role={currentAdminRole}
+          user={currentAdmin}
         />
       </div>
       <div className={`fixed inset-y-0 left-0 z-40 transform md:hidden transition-transform duration-300 ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <AdminSidebar
           activeTab={activeTab}
           onSelectTab={handleTabChange}
-          onLogout={() => navigate('/')}
+          onLogout={() => {
+            localStorage.removeItem('yolmov_admin');
+            localStorage.removeItem('yolmov-auth-session');
+            navigate('/');
+          }}
           role={currentAdminRole}
           mobile
           onCloseMobile={() => setMobileSidebarOpen(false)}
+          user={currentAdmin}
         />
       </div>
       <div className="flex-1 flex flex-col overflow-hidden">
