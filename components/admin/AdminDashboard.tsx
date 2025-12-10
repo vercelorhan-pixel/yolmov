@@ -137,10 +137,8 @@ const AdminDashboard: React.FC = () => {
     try {
       // LocalStorage'dan admin bilgisini kontrol et (session yerine)
       const adminStr = localStorage.getItem('yolmov_admin');
-      console.log('🔍 [AdminDashboard] localStorage admin:', adminStr);
       if (adminStr) {
         const admin = JSON.parse(adminStr);
-        console.log('✅ [AdminDashboard] Parsed admin:', admin);
         if (admin?.role) {
           setCurrentAdmin(admin);
           await loadAllData();
