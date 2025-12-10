@@ -191,12 +191,17 @@ export async function getAvailableAgents(queueSlug: string): Promise<CallAgent[]
  */
 export async function registerAsAgent(adminId: string, displayName?: string): Promise<CallAgent | null> {
   try {
-    // Önce mevcut kaydı kontrol et
-    const { data: existing } = await supabase
+    // Önce mevcut kaydı kontrol et (.maybeSingle() kullan - hata fırlatmaz)
+    const { data: existing, error: checkError } = await supabase
       .from('call_agents')
       .select('*')
       .eq('admin_id', adminId)
-      .single();
+      .maybeSingle();
+    
+    // RLS hatası varsa logla ama devam et
+    if (checkError) {
+      console.warn('⚠️ [CallCenter] Check existing agent warning:', checkError);
+    }
     
     if (existing) {
       // Güncelle
@@ -208,9 +213,12 @@ export async function registerAsAgent(adminId: string, displayName?: string): Pr
         })
         .eq('admin_id', adminId)
         .select()
-        .single();
+        .maybeSingle();
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ [CallCenter] Update agent error:', error);
+        throw error;
+      }
       return data;
     }
     
@@ -224,9 +232,14 @@ export async function registerAsAgent(adminId: string, displayName?: string): Pr
         assigned_queues: ['general-support'],
       })
       .select()
-      .single();
+      .maybeSingle();
     
-    if (error) throw error;
+    if (error) {
+      console.error('❌ [CallCenter] Insert agent error:', error);
+      throw error;
+    }
+    
+    console.log('✅ [CallCenter] Agent registered:', data?.id);
     return data;
   } catch (err) {
     console.error('❌ [CallCenter] registerAsAgent error:', err);

@@ -246,23 +246,39 @@ const AdminCallCenterTab: React.FC = () => {
     if (!currentAdmin) return;
     
     setAgentStatusLoading(true);
+    setError(null);
+    
     try {
-      // Register as agent if not exists
+      // 1. Register as agent if not exists
       if (!currentAgent) {
-        await callCenterService.registerAsAgent(currentAdmin.id, currentAdmin.name);
+        const registered = await callCenterService.registerAsAgent(currentAdmin.id, currentAdmin.name);
+        if (!registered) {
+          throw new Error('Agent kaydı oluşturulamadı. Lütfen migration 028_fix_call_agents_rls.sql dosyasını Supabase\'de çalıştırın.');
+        }
       }
       
-      // Toggle status
+      // 2. Toggle status
       const newStatus = currentAgent?.status === 'online' ? 'offline' : 'online';
-      await callCenterService.updateAgentStatus(currentAdmin.id, newStatus);
+      const success = await callCenterService.updateAgentStatus(currentAdmin.id, newStatus);
       
-      // Refresh
+      if (!success) {
+        throw new Error('Agent durumu güncellenemedi. Lütfen migration 028_fix_call_agents_rls.sql dosyasını Supabase\'de çalıştırın.');
+      }
+      
+      // 3. Refresh agents list
       const updatedAgents = await callCenterService.getCallAgents();
       setAgents(updatedAgents);
-      setCurrentAgent(updatedAgents.find(a => a.admin_id === currentAdmin.id) || null);
       
-    } catch (err) {
-      console.error('Toggle status error:', err);
+      // 4. Update current agent
+      const myAgent = updatedAgents.find(a => a.admin_id === currentAdmin.id);
+      setCurrentAgent(myAgent || null);
+      
+      // 5. Show success message
+      console.log(`✅ Agent status: ${newStatus}`);
+      
+    } catch (err: any) {
+      console.error('❌ Toggle status error:', err);
+      setError(err.message || 'Durum değiştirilemedi. Lütfen daha sonra tekrar deneyin.');
     } finally {
       setAgentStatusLoading(false);
     }
@@ -355,6 +371,37 @@ const AdminCallCenterTab: React.FC = () => {
   
   return (
     <div className="space-y-6">
+      {/* Migration Warning Banner */}
+      {error && error.includes('migration') && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
+            <div>
+              <h3 className="text-sm font-bold text-yellow-800">Veritabanı Migrasyonu Gerekli</h3>
+              <p className="text-sm text-yellow-700 mt-1">{error}</p>
+              <details className="mt-2">
+                <summary className="text-xs font-medium text-yellow-800 cursor-pointer hover:underline">
+                  Migration SQL'i göster
+                </summary>
+                <pre className="mt-2 p-3 bg-yellow-100 rounded text-xs overflow-x-auto">
+{`-- Supabase SQL Editor'da çalıştırın:
+DROP POLICY IF EXISTS "call_agents_select_all" ON call_agents;
+CREATE POLICY "call_agents_select_all" ON call_agents FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "call_agents_insert_admin" ON call_agents;
+CREATE POLICY "call_agents_insert_admin" ON call_agents FOR INSERT 
+WITH CHECK (admin_id = auth.uid() OR auth.role() = 'service_role');
+
+DROP POLICY IF EXISTS "call_agents_update_admin" ON call_agents;
+CREATE POLICY "call_agents_update_admin" ON call_agents FOR UPDATE 
+USING (admin_id = auth.uid() OR auth.role() = 'service_role');`}
+                </pre>
+              </details>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

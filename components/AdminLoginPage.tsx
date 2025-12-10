@@ -35,7 +35,10 @@ const AdminLoginPage: React.FC = () => {
         }
         
         // 3) Admin'i çağrı merkezi agent olarak kaydet (varsa güncelle)
-        await callCenterService.registerAsAgent(admin.id, admin.name);
+        // Not: Migration çalıştırılmadıysa bu başarısız olabilir, o yüzden await etmiyoruz
+        callCenterService.registerAsAgent(admin.id, admin.name).catch(err => {
+          console.warn('⚠️ Agent registration failed (migration might not be run):', err);
+        });
         
         // Admin info kaydet
         localStorage.setItem('yolmov_admin', JSON.stringify(admin));

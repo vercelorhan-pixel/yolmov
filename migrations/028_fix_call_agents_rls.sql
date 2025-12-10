@@ -2,14 +2,16 @@
 -- FIX: call_agents RLS CORS Issue
 -- =====================================================
 -- call_agents tablosundaki RLS politikasını düzelt
--- CORS hatasını çözmek için anon key ile erişime izin ver
+-- CORS hatasını çözmek için basitleştirilmiş politikalar
 
 -- Mevcut politikaları kaldır
 DROP POLICY IF EXISTS "call_agents_select_all" ON call_agents;
 DROP POLICY IF EXISTS "call_agents_update_all" ON call_agents;
+DROP POLICY IF EXISTS "call_agents_update_admin" ON call_agents;
 DROP POLICY IF EXISTS "call_agents_insert_all" ON call_agents;
+DROP POLICY IF EXISTS "call_agents_insert_admin" ON call_agents;
 
--- Yeni politikalar - anon key ile erişime izin ver
+-- Yeni politikalar - Basit ve hatasız
 CREATE POLICY "call_agents_select_all" 
 ON call_agents FOR SELECT 
 USING (true);
@@ -17,25 +19,15 @@ USING (true);
 CREATE POLICY "call_agents_update_admin" 
 ON call_agents FOR UPDATE 
 USING (
-  -- Admin kullanıcılar kendi kayıtlarını güncelleyebilir
-  admin_id IN (
-    SELECT id FROM admin_users WHERE id = auth.uid()
-  )
-  OR
-  -- Service role her zaman güncelleyebilir
-  auth.role() = 'service_role'
+  admin_id = auth.uid()
+  OR auth.role() = 'service_role'
 );
 
 CREATE POLICY "call_agents_insert_admin" 
 ON call_agents FOR INSERT 
 WITH CHECK (
-  -- Admin kullanıcılar kendi kayıtlarını ekleyebilir
-  admin_id IN (
-    SELECT id FROM admin_users WHERE id = auth.uid()
-  )
-  OR
-  -- Service role her zaman ekleyebilir
-  auth.role() = 'service_role'
+  admin_id = auth.uid()
+  OR auth.role() = 'service_role'
 );
 
 -- call_queue_assignments için de aynı düzeltmeyi yap
