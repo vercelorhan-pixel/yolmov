@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Shield, Lock, Mail, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import supabaseApi from '../services/supabaseApi';
+import callCenterService from '../services/callCenterService';
 
 const AdminLoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -32,6 +33,10 @@ const AdminLoginPage: React.FC = () => {
           await supabaseApi.auth.signOut();
           throw new Error('Admin kaydı bulunamadı. Kayıt işleminiz eksik olabilir.');
         }
+        
+        // 3) Admin'i çağrı merkezi agent olarak kaydet (varsa güncelle)
+        await callCenterService.registerAsAgent(admin.id, admin.name);
+        
         // Admin info kaydet
         localStorage.setItem('yolmov_admin', JSON.stringify(admin));
         navigate('/admin');

@@ -22,6 +22,7 @@ import callCenterService, {
   CallQueue
 } from '../../../services/callCenterService';
 import { useCall } from '../../../context/CallContext';
+import { supabase } from '../../../services/supabase';
 
 // =====================================================
 // TYPES
@@ -133,16 +134,22 @@ const AdminCallCenterTab: React.FC = () => {
   // DATA LOADING
   // =====================================================
   
+  // Load initial admin data
+  useEffect(() => {
+    const adminStr = localStorage.getItem('yolmov_admin');
+    if (adminStr) {
+      try {
+        const admin = JSON.parse(adminStr);
+        setCurrentAdmin(admin);
+      } catch (err) {
+        console.error('Failed to parse admin data:', err);
+      }
+    }
+  }, []);
+  
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Load admin from localStorage
-      const adminStr = localStorage.getItem('yolmov_admin');
-      if (adminStr) {
-        const admin = JSON.parse(adminStr);
-        setCurrentAdmin(admin);
-      }
       
       // Load all data in parallel
       const [statsData, agentsData, activeCallsData, queuesData] = await Promise.all([
@@ -157,25 +164,53 @@ const AdminCallCenterTab: React.FC = () => {
       setActiveCalls(activeCallsData);
       setQueues(queuesData);
       
-      // Find current agent
-      if (currentAdmin) {
-        const myAgent = agentsData.find(a => a.admin_id === currentAdmin.id);
-        setCurrentAgent(myAgent || null);
-      }
-      
     } catch (err) {
       console.error('Load error:', err);
       setError('Veriler yüklenirken hata oluştu');
     } finally {
       setLoading(false);
     }
-  }, [currentAdmin]);
+  }, []);
+  
+  // Update current agent when admin or agents change
+  useEffect(() => {
+    if (currentAdmin && agents.length > 0) {
+      const myAgent = agents.find(a => a.admin_id === currentAdmin.id);
+      setCurrentAgent(myAgent || null);
+    }
+  }, [currentAdmin, agents]);
   
   useEffect(() => {
     loadData();
     
     // Subscribe to realtime changes
     const unsubQueue = callCenterService.subscribeToQueueChanges((assignment) => {
+      console.log('📞 [AdminCallCenter] New queue assignment:', assignment);
+      
+      // Check if this call is for me (current admin)
+      if (currentAdmin && assignment.assigned_agent_id) {
+        const agents = [...document.querySelectorAll('[data-agent-admin-id]')];
+        const myAgentEl = agents.find(el => el.getAttribute('data-agent-admin-id') === currentAdmin.id);
+        if (myAgentEl && assignment.status === 'ringing') {
+          // Play notification sound
+          try {
+            const audio = new Audio('/notification.mp3');
+            audio.play().catch(e => console.log('Audio play failed:', e));
+          } catch (e) {
+            console.log('Audio not supported:', e);
+          }
+          
+          // Show browser notification
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Yeni Çağrı Geliyor!', {
+              body: `${assignment.caller_name || 'Bilinmeyen'} sizi arıyor`,
+              icon: '/icons/icon-192.png',
+              tag: assignment.call_id || assignment.id
+            });
+          }
+        }
+      }
+      
       // Refresh active calls on change
       callCenterService.getActiveCalls().then(setActiveCalls);
       callCenterService.getCallCenterStats().then(setStats);
@@ -185,6 +220,11 @@ const AdminCallCenterTab: React.FC = () => {
       // Refresh agents on change
       callCenterService.getCallAgents().then(setAgents);
     });
+    
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
     
     // Refresh every 30 seconds
     const interval = setInterval(() => {
@@ -196,7 +236,7 @@ const AdminCallCenterTab: React.FC = () => {
       unsubAgent();
       clearInterval(interval);
     };
-  }, [loadData]);
+  }, [loadData, currentAdmin]);
   
   // =====================================================
   // AGENT ACTIONS
@@ -229,21 +269,55 @@ const AdminCallCenterTab: React.FC = () => {
   };
   
   const handleAnswerCall = async (assignment: CallQueueAssignment) => {
-    if (!assignment.call_id) return;
+    if (!assignment.call_id || !currentAdmin) return;
     
     try {
-      // Update assignment status
+      // 1. Eğer çağrı henüz atanmamışsa (waiting), önce kendime ata
+      if (assignment.status === 'waiting' || !assignment.assigned_agent_id) {
+        // Önce agent olarak kayıt ol (yoksa)
+        if (!currentAgent) {
+          await callCenterService.registerAsAgent(currentAdmin.id, currentAdmin.name);
+        }
+        
+        // Agent ID'yi al
+        const agents = await callCenterService.getCallAgents();
+        const myAgent = agents.find(a => a.admin_id === currentAdmin.id);
+        
+        if (myAgent) {
+          // Assignment'ı kendime ata
+          await supabase
+            .from('call_queue_assignments')
+            .update({
+              assigned_agent_id: myAgent.id,
+              assigned_at: new Date().toISOString(),
+              status: 'ringing',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', assignment.id);
+          
+          // Calls tablosunu güncelle (receiver_id'yi benim admin_id'me çek)
+          await supabase
+            .from('calls')
+            .update({
+              receiver_id: currentAdmin.id,
+              status: 'ringing'
+            })
+            .eq('id', assignment.call_id);
+        }
+      }
+      
+      // 2. Artık çağrıyı cevapla
       await callCenterService.updateQueueAssignmentStatus(assignment.id, 'answered');
       
-      // Answer the call via CallContext
+      // 3. Answer the call via CallContext
       await answerCallById(assignment.call_id);
       
-      // Set agent as busy
+      // 4. Set agent as busy
       if (currentAdmin) {
         await callCenterService.setAgentCurrentCall(currentAdmin.id, assignment.call_id);
       }
       
-      // Refresh
+      // 5. Refresh
       loadData();
     } catch (err) {
       console.error('Answer call error:', err);
