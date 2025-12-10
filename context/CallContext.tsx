@@ -102,6 +102,31 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const callIdRef = useRef<string | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
+  // =====================================================
+  // SAYFA YENİLEME ENGELLEME - Çağrı sırasında
+  // =====================================================
+  
+  useEffect(() => {
+    // Çağrı aktifse (calling, ringing, connected) sayfa yenilemeyi engelle
+    const isCallActive = callStatus === 'calling' || callStatus === 'ringing' || callStatus === 'connected';
+    
+    if (isCallActive) {
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = 'Aktif bir görüşmeniz var. Sayfayı kapatırsanız görüşme sonlanacak.';
+        return e.returnValue;
+      };
+      
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      console.log('🔒 [CallContext] Page reload protection enabled');
+      
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        console.log('🔓 [CallContext] Page reload protection disabled');
+      };
+    }
+  }, [callStatus]);
+  
   // Mevcut kullanıcı bilgisi (admin, customer, partner veya anonim olabilir)
   const getCurrentUser = useCallback(() => {
     // Debug: Tüm localStorage durumunu logla
