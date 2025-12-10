@@ -308,14 +308,14 @@ export async function addToQueue(params: {
       sourcePage: params.sourcePage
     });
     
-    // Havuzu bul
-    const queue = await getQueueBySlug(params.queueSlug);
+    // 1. Havuzu bul
+    let queue = await getQueueBySlug(params.queueSlug);
+    
     if (!queue) {
       console.error('❌ [CallCenter] Queue not found:', params.queueSlug);
       
       // Fallback: Tüm kuyruklari listele
       const allQueues = await getCallQueues();
-      console.log('📋 [CallCenter] Available queues:', allQueues.map(q => q.slug));
       
       // Eğer hiç queue yoksa, migration çalışmamış demektir
       if (allQueues.length === 0) {
@@ -323,68 +323,57 @@ export async function addToQueue(params: {
       }
       
       // İlk aktif kuyruğu kullan (fallback)
-      const fallbackQueue = allQueues.find(q => q.is_active);
-      if (!fallbackQueue) {
+      queue = allQueues.find(q => q.is_active);
+      if (!queue) {
         throw new Error('NO_ACTIVE_QUEUE: No active queue found.');
       }
       
-      console.warn('⚠️ [CallCenter] Using fallback queue:', fallbackQueue.slug);
-      // Fallback queue ile devam et
-      const queueToUse = fallbackQueue;
-      
-      console.log('📝 [CallCenter] Adding to queue with data:', {
-        queue_id: queueToUse.id,
-        source_type: params.sourceType,
-        source_page: params.sourcePage,
-        caller_name: params.callerName,
-        caller_phone: params.callerPhone
-      });
-      
-      // Kuyruğa ekle
-      const { data, error } = await supabase
-        .from('call_queue_assignments')
-        .insert({
-          queue_id: queueToUse.id,
-          source_type: params.sourceType,
-          source_page: params.sourcePage || null,
-          caller_name: params.callerName || null,
-          caller_phone: params.callerPhone || null,
-          caller_email: params.callerEmail || null,
-          caller_message: params.callerMessage || null,
-          target_partner_id: params.targetPartnerId || null,
-          status: 'waiting',
-          queued_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('❌ [CallCenter] Supabase insert error:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        throw error;
-      }
-      
-      console.log(`✅ [CallCenter] Call added to queue: ${queueToUse.name}`);
-      return data;
+      console.warn('⚠️ [CallCenter] Using fallback queue:', queue.slug);
     }
+
+    // 2. Arayan Kimliğini Belirle
+    const { data: { user } } = await supabase.auth.getUser();
+    const callerId = user ? user.id : `anon_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    
+    console.log('📝 [CallCenter] Creating call record for:', callerId);
+
+    // 3. Calls Tablosuna Kayıt Oluştur (Zorunlu)
+    // receiver_id olarak queue.id kullanıyoruz (placeholder)
+    const { data: callData, error: callError } = await supabase
+      .from('calls')
+      .insert({
+        caller_id: callerId,
+        caller_type: 'customer',
+        receiver_id: queue.id, 
+        receiver_type: 'admin',
+        status: 'ringing',
+        call_source: 'queue'
+      })
+      .select()
+      .single();
+
+    if (callError) {
+      console.error('❌ [CallCenter] Failed to create call record:', callError);
+      throw callError;
+    }
+
+    console.log('✅ [CallCenter] Call record created:', callData.id);
     
     console.log('📝 [CallCenter] Adding to queue with data:', {
       queue_id: queue.id,
+      call_id: callData.id,
       source_type: params.sourceType,
       source_page: params.sourcePage,
       caller_name: params.callerName,
       caller_phone: params.callerPhone
     });
     
-    // Kuyruğa ekle
+    // 4. Kuyruğa ekle
     const { data, error } = await supabase
       .from('call_queue_assignments')
       .insert({
         queue_id: queue.id,
+        call_id: callData.id,
         source_type: params.sourceType,
         source_page: params.sourcePage || null,
         caller_name: params.callerName || null,
@@ -430,6 +419,13 @@ export async function addToQueue(params: {
  */
 async function distributeCallToAgent(assignmentId: string, queueSlug: string): Promise<CallAgent | null> {
   try {
+    // 1. Assignment'ı getir (call_id için)
+    const { data: assignment } = await supabase
+      .from('call_queue_assignments')
+      .select('call_id')
+      .eq('id', assignmentId)
+      .single();
+
     const availableAgents = await getAvailableAgents(queueSlug);
     
     if (availableAgents.length === 0) {
@@ -458,6 +454,18 @@ async function distributeCallToAgent(assignmentId: string, queueSlug: string): P
       .eq('id', assignmentId);
     
     if (error) throw error;
+
+    // FIX: Calls tablosunu güncelle (Agent'a bildirim gitmesi için)
+    if (assignment?.call_id) {
+       console.log(`📞 [CallCenter] Updating call ${assignment.call_id} receiver to ${selectedAgent.admin_name}`);
+       await supabase
+         .from('calls')
+         .update({
+           receiver_id: selectedAgent.admin_id, // User ID
+           status: 'ringing'
+         })
+         .eq('id', assignment.call_id);
+    }
     
     console.log(`✅ [CallCenter] Call assigned to agent: ${selectedAgent.admin_name}`);
     return selectedAgent;
