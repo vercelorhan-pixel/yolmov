@@ -24,7 +24,9 @@ const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = ({ children }) =
         }
 
         // 2. Supabase Session kontrolü (Güvenli kontrol)
-        const { data: { session } } = await supabaseApi.auth.getSession();
+        // supabaseApi.auth.getSession() returns the session object directly or null
+        const session = await supabaseApi.auth.getSession();
+        
         if (!session) {
           console.log('🔒 AdminProtectedRoute: No active Supabase session');
           // Session yoksa local veriyi de temizle
