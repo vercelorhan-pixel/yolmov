@@ -103,13 +103,13 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeTab, onSelectTab, onL
               <img src={user.avatar_url} alt="Admin" className="w-full h-full object-cover" />
             ) : (
               <span className="text-lg font-bold text-slate-300">
-                {user?.name?.charAt(0).toUpperCase() || 'A'}
+                {user?.name?.charAt(0).toUpperCase() || 'Y'}
               </span>
             )}
           </div>
           <div className="overflow-hidden">
-            <p className="text-sm font-bold truncate">{user?.name || 'Admin User'}</p>
-            <p className="text-xs text-slate-400 truncate" title={user?.email}>{user?.email || 'admin@platform'}</p>
+            <p className="text-sm font-bold truncate">{user?.name || 'Yönetici'}</p>
+            <p className="text-xs text-slate-400 truncate" title={user?.email}>{user?.email || ''}</p>
           </div>
         </div>
         <button
