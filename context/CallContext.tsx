@@ -157,40 +157,39 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // =====================================================
   
   useEffect(() => {
-    console.log('📞 [CallContext] Setting up realtime subscription (global channel)');
+    // Kullanıcı bilgisini subscription kurulmadan önce al
+    const currentUser = getCurrentUser();
+    if (!currentUser?.id) {
+      console.log('📞 [CallContext] No user found, skipping realtime subscription');
+      return;
+    }
     
-    // Global channel - tüm call insertleri dinle, filter etme
+    console.log('📞 [CallContext] Setting up realtime subscription for user:', currentUser.id);
+    
+    // Filtrelenmiş channel - SADECE bu kullanıcıya gelen aramaları dinle
     const channel = supabase
-      .channel('calls_global_incoming')
+      .channel(`calls_incoming_${currentUser.id}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'calls',
+          filter: `receiver_id=eq.${currentUser.id}`
         },
         async (payload) => {
           const newCall = payload.new as any;
           
-          // Her yeni call geldiğinde GÜNCEL user'ı al
-          const currentUser = getCurrentUser();
-          if (!currentUser) {
-            console.log('📞 [CallContext] No user found, ignoring call');
-            return;
-          }
-          
-          console.log('📞 [CallContext] New call detected:', newCall.id, 'receiver:', newCall.receiver_id, 'my id:', currentUser.id);
-          
-          // Bu arama bana mı geliyor? (receiver_id kontrolü)
+          // Ekstra güvenlik kontrolü - receiver_id eşleşmeli
           if (newCall.receiver_id !== currentUser.id) {
-            console.log('📞 [CallContext] Call not for me, ignoring');
+            console.log('📞 [CallContext] Call receiver mismatch, ignoring');
             return;
           }
           
           // Sadece 'ringing' durumundaki aramaları al
           if (newCall.status !== 'ringing') return;
           
-          console.log('📞 [CallContext] Incoming call FOR ME!', newCall);
+          console.log('📞 [CallContext] Incoming call FOR ME!', newCall.id);
           
           // Caller bilgilerini çek (anonim olabilir)
           let callerData = null;
@@ -567,7 +566,20 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCallStatus('calling');
       setError(null);
       
-      console.log('📞 [CallContext] Starting call to:', receiverId);
+      // Hemen currentCall'ı set et - UI'da doğru isim görünsün (SDP offer'ı bekleme)
+      setCurrentCall({
+        id: existingCallId || '',
+        callerId: user.id,
+        callerName: user.name,
+        callerType: user.type as 'customer' | 'partner' | 'admin',
+        receiverId: receiverId,
+        receiverName: displayName,
+        receiverType: receiverType,
+        status: 'calling',
+        startedAt: new Date().toISOString(),
+      });
+      
+      console.log('📞 [CallContext] Starting call to:', receiverId, 'displayName:', displayName);
       
       // 2. Mikrofon izni al
       const stream = await navigator.mediaDevices.getUserMedia({ 

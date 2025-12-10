@@ -40,6 +40,11 @@ const AdminLoginPage: React.FC = () => {
           console.warn('⚠️ Agent registration failed (migration might not be run):', err);
         });
         
+        // 4) Diğer rol oturumlarını temizle - çakışmayı önle
+        localStorage.removeItem('yolmov_partner');
+        localStorage.removeItem('yolmov_customer');
+        localStorage.removeItem('yolmov_anonymous_caller_id');
+        
         // Admin info kaydet
         localStorage.setItem('yolmov_admin', JSON.stringify(admin));
         navigate('/admin');

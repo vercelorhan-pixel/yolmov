@@ -50,12 +50,28 @@ const IncomingCallModal: React.FC = () => {
   // Debug log
   console.log('📞 [IncomingCallModal] isIncoming:', isIncoming, 'callStatus:', callStatus, 'callerInfo:', callerInfo);
 
-  // Fullscreen mode - gelen arama olduğunda aktif et
+  // Admin kullanıcıları için bu modal'ı gösterme - adminler toast notification alacak
+  const isAdminUser = (() => {
+    try {
+      const adminData = localStorage.getItem('yolmov_admin');
+      return !!adminData;
+    } catch {
+      return false;
+    }
+  })();
+
+  // Fullscreen mode - gelen arama olduğunda aktif et (sadece partner için)
   useEffect(() => {
-    if (isIncoming && callStatus === 'ringing') {
+    if (isIncoming && callStatus === 'ringing' && !isAdminUser) {
       enterFullscreen();
     }
-  }, [isIncoming, callStatus]);
+  }, [isIncoming, callStatus, isAdminUser]);
+
+  // Admin kullanıcıları için gösterme - AdminIncomingCallToast kullanacaklar
+  if (isAdminUser) {
+    console.log('📞 [IncomingCallModal] Admin user detected, skipping fullscreen modal');
+    return null;
+  }
 
   // Sadece gelen arama durumunda göster
   if (!isIncoming || callStatus !== 'ringing') return null;

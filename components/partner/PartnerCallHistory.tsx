@@ -52,18 +52,19 @@ const PartnerCallHistory: React.FC = () => {
       loadCalls();
       loadStats();
       
-      // Realtime subscription for new calls
+      // Realtime subscription for partner's calls only (filtered by receiver_id)
       const channel = supabase
-        .channel('partner_calls_realtime')
+        .channel(`partner_calls_${partnerId}`)
         .on(
           'postgres_changes',
           {
             event: '*', // INSERT, UPDATE, DELETE
             schema: 'public',
             table: 'calls',
+            filter: `receiver_id=eq.${partnerId}` // Sadece bu partner'a gelen çağrıları dinle
           },
           (payload) => {
-            console.log('📞 [PartnerCallHistory] Realtime update:', payload);
+            console.log('📞 [PartnerCallHistory] Realtime update for partner:', partnerId, payload);
             // Reload calls when any change happens
             loadCalls();
             loadStats();

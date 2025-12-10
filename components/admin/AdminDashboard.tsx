@@ -1,6 +1,7 @@
 import React, { useState, lazy, Suspense, useEffect } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Users, Shield, FileText, Search, Eye, Edit, Trash2, UserPlus, CheckCircle, DollarSign, Mail, Phone, Star, MapPin, Clock, User as UserIcon, CreditCard, XCircle, Truck, Calendar } from 'lucide-react';
+import AdminIncomingCallToast from '../voice/AdminIncomingCallToast';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
 import RequestDetailModal from './modals/RequestDetailModal';
@@ -334,6 +335,9 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
+      {/* Admin için gelen çağrı toast bildirimi */}
+      <AdminIncomingCallToast />
+      
       {mobileSidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setMobileSidebarOpen(false)} />}
       <div className="hidden md:block">
         <AdminSidebar

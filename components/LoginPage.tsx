@@ -127,6 +127,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ userType }) => {
         }
         // LocalStorage'a kaydet (QuoteWizard ve diğer sayfalar kullanıyor)
         try {
+          // Diğer rol oturumlarını temizle - çakışmayı önle
+          localStorage.removeItem('yolmov_admin');
+          localStorage.removeItem('yolmov_partner');
+          
           localStorage.setItem('yolmov_customer', JSON.stringify(customerData));
         } catch {}
         
@@ -147,6 +151,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ userType }) => {
           navigate('/partner/inceleniyor');
           return;
         }
+        // Diğer rol oturumlarını temizle - çakışmayı önle
+        localStorage.removeItem('yolmov_admin');
+        localStorage.removeItem('yolmov_customer');
+        localStorage.removeItem('yolmov_anonymous_caller_id');
+        
         localStorage.setItem('yolmov_partner', JSON.stringify(partner));
         navigate('/partner');
       }
