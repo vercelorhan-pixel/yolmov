@@ -18,6 +18,40 @@
     <script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
     
     <meta charset="utf-8" />
+    
+    <!-- 🛡️ Auto-Reload on Chunk Load Error (Fix for White Screen after Deploy) -->
+    <script>
+      window.addEventListener('error', function(e) {
+        // Check if the error is from a script or link tag (resource loading error)
+        if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
+          // Check if it's a main app chunk or index file
+          const src = e.target.src || e.target.href;
+          if (src && (src.includes('index-') || src.includes('assets/'))) {
+            console.error('🚨 Resource failed to load (likely stale cache):', src);
+            
+            // Prevent infinite reload loops
+            const lastReload = sessionStorage.getItem('last_resource_reload');
+            const now = Date.now();
+            if (!lastReload || (now - parseInt(lastReload)) > 10000) {
+              console.log('🔄 Forcing reload to fetch fresh assets...');
+              sessionStorage.setItem('last_resource_reload', now.toString());
+              
+              // Unregister SW to ensure fresh start
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                  for(let registration of registrations) {
+                    registration.unregister();
+                  }
+                  window.location.reload(true);
+                });
+              } else {
+                window.location.reload(true);
+              }
+            }
+          }
+        }
+      }, true); // Capture phase is essential for resource errors
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Yolmov - Türkiye'nin Yol Yardım Platformu | 7/24 Çekici ve Oto Kurtarma</title>
     
