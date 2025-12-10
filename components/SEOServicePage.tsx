@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { MapPin, Phone, Clock, Star, Shield, ChevronRight, Home, Search, Users, TrendingUp, MessageCircle, Calculator, ChevronDown, ChevronUp } from 'lucide-react';
 import EmergencyFloatingButton from './shared/EmergencyFloatingButton';
+import SEOSearchWidget from './shared/SEOSearchWidget';
 import { getCityBySlug, getDistrictBySlug, getServiceInfo, generateSEOMetadata, ServiceType } from '../lib/seoData';
 
 const SEOServicePage: React.FC = () => {
@@ -195,24 +196,14 @@ const SEOServicePage: React.FC = () => {
             </div>
           </div>
           
-          {/* Arama Kutusu */}
-          <form onSubmit={handleSearch} className="mt-6 mb-4">
-            <div className="relative max-w-2xl">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={`${cityData.name} başka bir bölge veya hizmet ara...`}
-                className="w-full py-4 px-6 pr-12 rounded-2xl text-gray-900 text-lg focus:outline-none focus:ring-4 focus:ring-white/30 shadow-lg"
-              />
-              <button
-                type="submit"
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-brand-orange text-white p-2.5 rounded-xl hover:bg-orange-600 transition-colors"
-              >
-                <Search size={24} />
-              </button>
-            </div>
-          </form>
+          {/* Hero-Style Arama Kutusu */}
+          <div className="mt-6 mb-4">
+            <SEOSearchWidget
+              initialCity={cityData.slug}
+              initialDistrict={districtData.slug}
+              initialService={service}
+            />
+          </div>
 
           <div className="flex flex-wrap gap-4 mt-6">
             <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">

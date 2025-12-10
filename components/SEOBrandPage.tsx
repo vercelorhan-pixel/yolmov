@@ -8,6 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { POPULAR_BRANDS, getBrandBySlug } from '../lib/seoData';
 import EmergencyFloatingButton from './shared/EmergencyFloatingButton';
+import SEOSearchWidget from './shared/SEOSearchWidget';
 import { Phone, CheckCircle, Shield, Truck, Home, ChevronRight, Star, Clock, Award, Zap, Battery, Search, Users, Calculator, ChevronDown, ChevronUp, MessageCircle, TrendingUp } from 'lucide-react';
 
 const SEOBrandPage: React.FC = () => {
@@ -174,24 +175,12 @@ const SEOBrandPage: React.FC = () => {
               }
             </p>
 
-            {/* Arama Kutusu */}
-            <form onSubmit={handleSearch} className="mb-8 max-w-2xl mx-auto">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={`${brand.name} başka bir hizmet veya bölge ara...`}
-                  className="w-full px-6 py-4 pr-14 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-white/30 text-lg"
-                />
-                <button
-                  type="submit"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-slate-900 text-white p-3 rounded-lg hover:bg-slate-800 transition-colors"
-                >
-                  <Search size={20} />
-                </button>
-              </div>
-            </form>
+            {/* Hero-Style Arama Kutusu */}
+            <div className="mb-8 max-w-2xl mx-auto">
+              <SEOSearchWidget
+                initialService="cekici"
+              />
+            </div>
 
             {/* Kullanıcı Badge */}
             <div className="flex justify-center mb-8">
