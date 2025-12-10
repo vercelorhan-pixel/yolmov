@@ -69,9 +69,11 @@ const CallSupportButton: React.FC<CallSupportButtonProps> = ({
         
         if (callData?.receiver_id) {
           console.log('✅ [CallSupport] Starting WebRTC call to agent:', callData.receiver_id);
+          console.log('✅ [CallSupport] Using existing call_id:', assignment.call_id);
           
-          // WebRTC aramasını başlat - Bu mikrofon izni isteyecek ve OutgoingCallUI gösterecek
-          await startCall(callData.receiver_id, 'admin');
+          // WebRTC aramasını başlat - Mevcut call_id'yi kullan, yeni kayıt oluşturma
+          // Bu mikrofon izni isteyecek ve OutgoingCallUI gösterecek
+          await startCall(callData.receiver_id, 'admin', assignment.call_id!);
           setShowModal(false);
         } else {
           throw new Error('Agent bilgisi alınamadı');

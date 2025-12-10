@@ -612,7 +612,7 @@ USING (admin_id = auth.uid() OR auth.role() = 'service_role');`}
                             <PhoneOff size={18} />
                           </button>
                         </div>
-                      ) : call.status === 'connected' ? (
+                      ) : call.status === 'answered' ? (
                         <div className="flex items-center gap-2">
                           <div className="flex items-center gap-2 text-green-600 mr-2">
                             <PhoneCall size={18} className="animate-pulse" />

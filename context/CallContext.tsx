@@ -47,7 +47,7 @@ export interface CallContextType {
   error: string | null;
   
   // Aksiyonlar
-  startCall: (receiverId: string, receiverType?: 'customer' | 'partner' | 'admin') => Promise<void>;
+  startCall: (receiverId: string, receiverType?: 'customer' | 'partner' | 'admin', existingCallId?: string) => Promise<void>;
   answerCall: () => Promise<void>;
   answerCallById: (callId: string) => Promise<void>; // Yeni: ID ile cevapla
   rejectCall: () => Promise<void>;
@@ -551,8 +551,14 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Partner aramayı cevaplayınca 1 kredi düşer
   // =====================================================
   
-  const startCall = async (receiverId: string, receiverType: 'customer' | 'partner' | 'admin' = 'partner') => {
+  const startCall = async (receiverId: string, receiverType: 'customer' | 'partner' | 'admin' = 'partner', existingCallId?: string) => {
     const user = getCurrentUser(); // Her zaman bir user döner (anonim dahil)
+    
+    // Eğer mevcut call ID varsa, ref'i set et
+    if (existingCallId) {
+      callIdRef.current = existingCallId;
+      console.log('📞 [CallContext] Using existing call ID:', existingCallId);
+    }
     
     try {
       setCallStatus('calling');
@@ -683,21 +689,43 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       peer.on('signal', async (data) => {
         console.log('📞 [CallContext] Got SDP offer, saving to DB...');
         
-        const { data: call, error: callError } = await supabase
-          .from('calls')
-          .insert({
-            caller_id: user.id,
-            caller_type: user.type,
-            receiver_id: receiverId,
-            receiver_type: receiverType,
-            status: 'ringing',
-            sdp_offer: data,
-          })
-          .select()
-          .single();
+        let call: any;
+        let callError: any;
+        
+        // Mevcut call ID varsa UPDATE, yoksa INSERT
+        if (callIdRef.current) {
+          console.log('📞 [CallContext] Updating existing call with SDP offer:', callIdRef.current);
+          const result = await supabase
+            .from('calls')
+            .update({
+              sdp_offer: data,
+              status: 'ringing',
+            })
+            .eq('id', callIdRef.current)
+            .select()
+            .single();
+          call = result.data;
+          callError = result.error;
+        } else {
+          console.log('📞 [CallContext] Creating new call record...');
+          const result = await supabase
+            .from('calls')
+            .insert({
+              caller_id: user.id,
+              caller_type: user.type,
+              receiver_id: receiverId,
+              receiver_type: receiverType,
+              status: 'ringing',
+              sdp_offer: data,
+            })
+            .select()
+            .single();
+          call = result.data;
+          callError = result.error;
+        }
           
-        if (callError) {
-          console.error('📞 [CallContext] Error creating call:', callError);
+        if (callError || !call) {
+          console.error('📞 [CallContext] Error saving call:', callError);
           setError('Arama başlatılamadı');
           await cleanupCall();
           return;
