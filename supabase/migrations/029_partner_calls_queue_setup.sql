@@ -43,8 +43,7 @@ SET
     ELSE array_append(assigned_queues, 'partner-calls')
   END,
   updated_at = NOW()
-WHERE status IN ('online', 'offline')
-  AND (assigned_queues IS NULL OR NOT ('partner-calls' = ANY(assigned_queues)));
+WHERE status IN ('online', 'offline');
 
 -- 3. Veritabanı kontrolü için yardımcı sorgu (migration sonrası çalıştırın)
 -- SELECT * FROM call_queues WHERE slug = 'partner-calls';
