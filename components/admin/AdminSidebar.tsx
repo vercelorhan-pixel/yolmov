@@ -46,7 +46,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({ activeTab, onSelectTab, onL
         </div>
       </div>
       
-      <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto scrollbar-hide">
+      <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         {categories.map((category) => {
           const tabsInCategory = adminTabs.filter(
             (t) => t.category === category.id && (!t.allowedRoles || t.allowedRoles.includes(role))

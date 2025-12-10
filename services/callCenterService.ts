@@ -355,8 +355,8 @@ export async function addToQueue(params: {
     const selectedAgent = availableAgents.length > 0 ? availableAgents[0] : null;
     
     // 4. Calls Tablosuna Kayıt Oluştur (Zorunlu)
-    // receiver_id olarak agent varsa admin_id, yoksa queue.id kullanıyoruz
-    const receiverId = selectedAgent ? selectedAgent.admin_id : queue.id;
+    // receiver_id olarak agent varsa admin_id, yoksa NULL bırak (manuel atama beklesin)
+    const receiverId = selectedAgent ? selectedAgent.admin_id : null;
     
     const { data: callData, error: callError } = await supabase
       .from('calls')
