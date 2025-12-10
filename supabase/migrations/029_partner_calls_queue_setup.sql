@@ -38,12 +38,13 @@ DO UPDATE SET
 UPDATE call_agents
 SET 
   assigned_queues = CASE
+    WHEN assigned_queues IS NULL THEN ARRAY['partner-calls']::text[]
     WHEN 'partner-calls' = ANY(assigned_queues) THEN assigned_queues
     ELSE array_append(assigned_queues, 'partner-calls')
   END,
   updated_at = NOW()
 WHERE status IN ('online', 'offline')
-  AND NOT ('partner-calls' = ANY(assigned_queues));
+  AND (assigned_queues IS NULL OR NOT ('partner-calls' = ANY(assigned_queues)));
 
 -- 3. Veritabanı kontrolü için yardımcı sorgu (migration sonrası çalıştırın)
 -- SELECT * FROM call_queues WHERE slug = 'partner-calls';
