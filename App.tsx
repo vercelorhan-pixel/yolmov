@@ -235,6 +235,7 @@ function App() {
             <Route path="/admin/hizmet-bolgeleri" element={<AdminDashboard />} />
             <Route path="/admin/kampanyalar" element={<AdminDashboard />} />
             <Route path="/admin/aktivite" element={<AdminDashboard />} />
+            <Route path="/admin/cagri-merkezi" element={<AdminDashboard />} />
             <Route path="/admin/canli-gorusmeler" element={<AdminDashboard />} />
             <Route path="/admin/cagri-kayitlari" element={<AdminDashboard />} />
             {/* Kullanıcı ve Partner detayları artık AdminDashboard içinde gösteriliyor */}
