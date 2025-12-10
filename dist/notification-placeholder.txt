@@ -1,0 +1,3 @@
+<!-- Notification sound placeholder -->
+<!-- Bu dosya tarayıcıda ses çalmak için kullanılır -->
+<!-- Gerçek ses dosyası eklemek için public/notification.mp3 yükleyin -->

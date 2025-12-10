@@ -1,6 +1,6 @@
 //   Service Worker for YOLMOV PWA
 // ⚠️ CACHE_VERSION: Manuel olarak güncelle (sadece önemli değişikliklerde)
-const CACHE_VERSION = 'v1.0.7';
+const CACHE_VERSION = 'v1.0.9';
 const CACHE_NAME = `yolmov-cache-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
 
@@ -18,9 +18,10 @@ const NO_CACHE_PATTERNS = [
   '.js'                   // 🔥 Tüm JavaScript dosyaları - network only!
 ];
 
-// Pattern for assets that should use network-first strategy (artık boş - JS'ler NO_CACHE'de)
+// Pattern for assets that should use network-first strategy
 const NETWORK_FIRST_PATTERNS = [
-  '.html'                 // Sadece HTML files
+  '.html',                // HTML files
+  '/'                     // Root path
 ];
 
 // Assets to cache immediately on install
@@ -107,7 +108,8 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Network-first for critical assets (HTML only now - JS excluded)
-  const useNetworkFirst = NETWORK_FIRST_PATTERNS.some(pattern => url.includes(pattern));
+  // Also include navigation requests (browser page loads)
+  const useNetworkFirst = NETWORK_FIRST_PATTERNS.some(pattern => url.includes(pattern)) || event.request.mode === 'navigate';
   
   if (useNetworkFirst) {
     event.respondWith(

@@ -50,6 +50,7 @@ USING (true);
 -- call_queues için de kontrol
 DROP POLICY IF EXISTS "call_queues_select_all" ON call_queues;
 DROP POLICY IF EXISTS "call_queues_update_all" ON call_queues;
+DROP POLICY IF EXISTS "call_queues_insert_all" ON call_queues;
 
 CREATE POLICY "call_queues_select_all" 
 ON call_queues FOR SELECT 
@@ -57,10 +58,8 @@ USING (true);
 
 CREATE POLICY "call_queues_update_all" 
 ON call_queues FOR UPDATE 
-USING (
-  auth.role() = 'service_role'
-  OR
-  EXISTS (
-    SELECT 1 FROM admin_users WHERE id = auth.uid()
-  )
-);
+USING (true);
+
+CREATE POLICY "call_queues_insert_all" 
+ON call_queues FOR INSERT 
+WITH CHECK (true);

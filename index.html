@@ -103,31 +103,30 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
     
-    <!-- Yolmov Custom Font -->
+    <!-- Google Fonts - Montserrat (Production Ready) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <style>
-      @font-face {
-        font-family: 'Yolmov';
-        src: url('/assets/yolmov.otf') format('opentype');
-        font-weight: normal;
-        font-style: normal;
-        font-display: swap;
-      }
       .yolmov-logo {
-        font-family: 'Yolmov', 'Inter', -apple-system, sans-serif;
+        font-family: 'Montserrat', 'Inter', -apple-system, sans-serif;
         letter-spacing: 0;
       }
+      body {
+        font-family: 'Montserrat', 'Inter', system-ui, sans-serif;
+      }
     </style>
-    <link rel="stylesheet" href="/assets/fonts.css" />
     
-    <!-- Tailwind CSS - DEV ONLY, Production'da npm install gerekli -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind CSS Inline Config -->
     <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              brand: {
-                orange: '#FF7A00',
+      tailwind = {
+        config: {
+          theme: {
+            extend: {
+              colors: {
+                brand: {
+                  orange: '#FF7A00',
                 lightOrange: '#FF9A2A',
                 dark: '#333333',
                 light: '#F5F5F5'
