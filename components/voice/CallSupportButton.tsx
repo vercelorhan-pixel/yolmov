@@ -45,7 +45,7 @@ const CallSupportButton: React.FC<CallSupportButtonProps> = ({
     setError(null);
 
     try {
-      // 1. Çağrıyı kuyruğa ekle
+      // 1. Çağrıyı kuyruğa ekle (addToQueue içinde artık agent atama yapılıyor)
       const assignment = await callCenterService.addToQueue({
         queueSlug,
         sourceType,
@@ -61,19 +61,10 @@ const CallSupportButton: React.FC<CallSupportButtonProps> = ({
 
       console.log('📞 [CallSupport] Added to queue:', assignment.id);
 
-      // 2. Uygun bir agent varsa direkt arama başlat
-      const availableAgents = await callCenterService.getAvailableAgents(queueSlug);
-      
-      if (availableAgents.length > 0) {
-        // İlk uygun agent'ı seç
-        const targetAgent = availableAgents[0];
-        
-        // Arama başlat (admin'e)
-        await startCall(targetAgent.admin_id, 'admin');
-        
-        // Assignment'ı güncelle
-        await callCenterService.updateQueueAssignmentStatus(assignment.id, 'ringing');
-        
+      // 2. Assignment durumuna göre işlem yap
+      if (assignment.status === 'ringing' && assignment.assigned_agent_id) {
+        // Agent atandı - Çağrı otomatik başlatıldı (calls tablosunda receiver_id admin_id olarak set edildi)
+        console.log('✅ [CallSupport] Call assigned to agent, ringing...');
         setShowModal(false);
       } else {
         // Uygun agent yok - kuyrukta beklet

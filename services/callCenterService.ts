@@ -337,14 +337,20 @@ export async function addToQueue(params: {
     
     console.log('📝 [CallCenter] Creating call record for:', callerId);
 
-    // 3. Calls Tablosuna Kayıt Oluştur (Zorunlu)
-    // receiver_id olarak queue.id kullanıyoruz (placeholder)
+    // 3. Uygun bir agent var mı kontrol et
+    const availableAgents = await getAvailableAgents(params.queueSlug);
+    const selectedAgent = availableAgents.length > 0 ? availableAgents[0] : null;
+    
+    // 4. Calls Tablosuna Kayıt Oluştur (Zorunlu)
+    // receiver_id olarak agent varsa admin_id, yoksa queue.id kullanıyoruz
+    const receiverId = selectedAgent ? selectedAgent.admin_id : queue.id;
+    
     const { data: callData, error: callError } = await supabase
       .from('calls')
       .insert({
         caller_id: callerId,
         caller_type: 'customer',
-        receiver_id: queue.id, 
+        receiver_id: receiverId, 
         receiver_type: 'admin',
         status: 'ringing',
         call_source: 'queue'
@@ -399,12 +405,26 @@ export async function addToQueue(params: {
     
     console.log(`✅ [CallCenter] Call added to queue: ${queue.name}`);
     
-    // Otomatik dağıtım aktifse, uygun agent'a ata
-    if (queue.auto_distribute) {
-      const assigned = await distributeCallToAgent(data.id, params.queueSlug);
-      if (assigned) {
-        return { ...data, assigned_agent_id: assigned.id };
+    // Otomatik dağıtım aktifse VE agent varsa, assignment'ı güncelle
+    if (queue.auto_distribute && selectedAgent) {
+      console.log(`📞 [CallCenter] Auto-assigning to agent: ${selectedAgent.display_name || selectedAgent.admin_name}`);
+      
+      // Assignment'a agent bilgisini ekle
+      const { error: updateError } = await supabase
+        .from('call_queue_assignments')
+        .update({
+          assigned_agent_id: selectedAgent.id,
+          assigned_at: new Date().toISOString(),
+          status: 'ringing',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', data.id);
+      
+      if (!updateError) {
+        return { ...data, assigned_agent_id: selectedAgent.id, status: 'ringing' };
       }
+    } else if (!selectedAgent) {
+      console.log('⚠️ [CallCenter] No available agents for queue:', params.queueSlug);
     }
     
     return data;

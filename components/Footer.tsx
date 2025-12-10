@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
+import { CallSupportButton } from './voice';
 
 const Footer: React.FC = () => {
   const navigate = useNavigate();
@@ -83,6 +84,17 @@ const Footer: React.FC = () => {
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-brand-orange shrink-0" />
                 <span>Platform üzerinden 7/24 hizmet talebinde bulunabilirsiniz</span>
+              </li>
+              <li>
+                <CallSupportButton 
+                  variant="secondary"
+                  size="md"
+                  queueSlug="general-support"
+                  sourceType="web-contact"
+                  sourcePage="/footer"
+                  label="Destek Hattı"
+                  className="w-full mt-2"
+                />
               </li>
             </ul>
           </div>

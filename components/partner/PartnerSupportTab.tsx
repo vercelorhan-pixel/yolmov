@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { 
-  ChevronDown, FileText, Info, Send, Headphones, X
+  ChevronDown, FileText, Info, Send, Headphones, X, Phone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CallSupportButton } from '../voice';
 
 // Ticket Type
 interface Ticket {
@@ -217,10 +218,18 @@ const PartnerSupportTab: React.FC<PartnerSupportTabProps> = ({
     <div className="p-4 md:p-6 h-full flex flex-col">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-          <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center mb-4"><Headphones size={24} /></div>
-          <h3 className="text-lg font-bold text-slate-900 mb-2">Canlı Destek</h3>
-          <p className="text-slate-500 text-sm mb-6">Operasyonel sorunlar için 7/24 temsilcilerimize bağlanın.</p>
-          <button className="w-full py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors">Sohbeti Başlat</button>
+          <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center mb-4"><Phone size={24} /></div>
+          <h3 className="text-lg font-bold text-slate-900 mb-2">Sesli Destek</h3>
+          <p className="text-slate-500 text-sm mb-6">Operasyonel sorunlar için 7/24 temsilcilerimizle görüşün.</p>
+          <CallSupportButton 
+            variant="primary"
+            size="md"
+            queueSlug="partner-calls"
+            sourceType="partner-direct"
+            sourcePage="/partner/support"
+            label="Destek Hattını Ara"
+            className="w-full"
+          />
         </div>
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
           <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-4"><FileText size={24} /></div>
