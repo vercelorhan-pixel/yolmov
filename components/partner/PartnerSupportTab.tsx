@@ -3,7 +3,7 @@ import {
   ChevronDown, FileText, Info, Send, Headphones, X, Phone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CallSupportButton } from '../voice';
+import { PartnerCallSupportButton } from '../voice';
 
 // Ticket Type
 interface Ticket {
@@ -221,12 +221,9 @@ const PartnerSupportTab: React.FC<PartnerSupportTabProps> = ({
           <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center mb-4"><Phone size={24} /></div>
           <h3 className="text-lg font-bold text-slate-900 mb-2">Sesli Destek</h3>
           <p className="text-slate-500 text-sm mb-6">Operasyonel sorunlar için 7/24 temsilcilerimizle görüşün.</p>
-          <CallSupportButton 
+          <PartnerCallSupportButton 
             variant="primary"
             size="md"
-            queueSlug="partner-calls"
-            sourceType="partner-direct"
-            sourcePage="/partner/support"
             label="Destek Hattını Ara"
             className="w-full"
           />

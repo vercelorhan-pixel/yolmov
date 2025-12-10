@@ -37,7 +37,8 @@ const ActiveCallUI: React.FC<ActiveCallUIProps> = ({ minimized = false, onMinimi
   const { 
     callStatus, 
     currentCall, 
-    callerInfo, 
+    callerInfo,
+    isIncoming,
     endCall, 
     isMuted, 
     toggleMute, 
@@ -69,8 +70,12 @@ const ActiveCallUI: React.FC<ActiveCallUIProps> = ({ minimized = false, onMinimi
     endCall();
   };
 
-  // Karşı tarafın bilgisi
-  const otherPartyName = callerInfo?.name || callerInfo?.company_name || currentCall?.callerName || 'Görüşme';
+  // Karşı tarafın bilgisi - giden/gelen aramaya göre farklı göster
+  // Giden arama (biz aradık): receiverName göster
+  // Gelen arama (bizi aradılar): callerInfo göster
+  const otherPartyName = isIncoming
+    ? (callerInfo?.name || callerInfo?.company_name || currentCall?.callerName || 'Arayan')
+    : (currentCall?.receiverName || (currentCall?.receiverType === 'admin' ? 'Yolmov Destek' : 'Partner'));
 
   // Minimize mod - küçük floating bar
   if (minimized) {

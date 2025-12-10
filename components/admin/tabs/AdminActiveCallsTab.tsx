@@ -95,16 +95,25 @@ const AdminActiveCallsTab: React.FC = () => {
     }
   };
 
-  // Realtime subscription
+  // Realtime subscription - unique channel ile çakışma önleme
   useEffect(() => {
     loadActiveCalls();
 
+    // Her mount'ta unique channel oluştur
+    const channelId = `admin_active_calls_${Date.now()}`;
     const channel = supabase
-      .channel('admin_active_calls')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'calls' }, () => {
-        loadActiveCalls();
-      })
-      .subscribe();
+      .channel(channelId)
+      .on(
+        'postgres_changes', 
+        { event: '*', schema: 'public', table: 'calls' }, 
+        (payload) => {
+          console.log('📞 [AdminActiveCalls] Realtime event:', payload.eventType);
+          loadActiveCalls();
+        }
+      )
+      .subscribe((status) => {
+        console.log('📞 [AdminActiveCalls] Subscription status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -134,12 +143,22 @@ const AdminActiveCallsTab: React.FC = () => {
 
   const endCall = async (callId: string) => {
     try {
+      // Optimistic UI update - hemen listeden kaldır
+      setActiveCalls(prev => prev.filter(c => c.id !== callId));
+      
       await supabase
         .from('calls')
         .update({ status: 'ended', ended_at: new Date().toISOString() })
         .eq('id', callId);
+      
+      console.log('✅ [AdminActiveCalls] Call ended:', callId);
+      
+      // Doğrulama için yeniden yükle
+      await loadActiveCalls();
     } catch (err) {
       console.error('❌ End call error:', err);
+      // Hata durumunda listeyi yeniden yükle
+      loadActiveCalls();
     }
   };
 

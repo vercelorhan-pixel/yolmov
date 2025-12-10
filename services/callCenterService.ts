@@ -344,25 +344,59 @@ export async function addToQueue(params: {
       console.warn('⚠️ [CallCenter] Using fallback queue:', queue.slug);
     }
 
-    // 2. Arayan Kimliğini Belirle
-    const { data: { user } } = await supabase.auth.getUser();
-    const callerId = user ? user.id : `anon_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    // 2. Arayan Kimliğini ve Tipini Belirle (localStorage öncelikli)
+    let callerId: string;
+    let callerType: 'customer' | 'partner' = 'customer';
     
-    console.log('📝 [CallCenter] Creating call record for:', callerId);
+    // Partner kontrolü (localStorage'dan)
+    const partnerDataStr = typeof window !== 'undefined' ? localStorage.getItem('yolmov_partner') : null;
+    const customerDataStr = typeof window !== 'undefined' ? localStorage.getItem('yolmov_customer') : null;
+    
+    if (partnerDataStr) {
+      try {
+        const partnerData = JSON.parse(partnerDataStr);
+        callerId = partnerData.id || partnerData.partner_id;
+        callerType = 'partner';
+        console.log('📝 [CallCenter] Caller is partner:', callerId);
+      } catch {
+        callerId = `anon_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      }
+    } else if (customerDataStr) {
+      try {
+        const customerData = JSON.parse(customerDataStr);
+        callerId = customerData.id;
+        callerType = 'customer';
+        console.log('📝 [CallCenter] Caller is customer:', callerId);
+      } catch {
+        callerId = `anon_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      }
+    } else {
+      // Supabase auth veya anonim
+      const { data: { user } } = await supabase.auth.getUser();
+      callerId = user ? user.id : `anon_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      console.log('📝 [CallCenter] Caller from auth/anon:', callerId);
+    }
+    
+    console.log('📝 [CallCenter] Creating call record for:', callerId, 'type:', callerType);
 
     // 3. Uygun bir agent var mı kontrol et
     const availableAgents = await getAvailableAgents(params.queueSlug);
     const selectedAgent = availableAgents.length > 0 ? availableAgents[0] : null;
     
+    // Agent yoksa erken hata döndür (WebRTC çalışmaz)
+    if (!selectedAgent) {
+      console.error('❌ [CallCenter] No available agents for queue:', params.queueSlug);
+      throw new Error('NO_AVAILABLE_AGENT: Şu anda müsait temsilci bulunmuyor. Lütfen daha sonra tekrar deneyin.');
+    }
+    
     // 4. Calls Tablosuna Kayıt Oluştur (Zorunlu)
-    // receiver_id olarak agent varsa admin_id, yoksa NULL bırak (manuel atama beklesin)
-    const receiverId = selectedAgent ? selectedAgent.admin_id : null;
+    const receiverId = selectedAgent.admin_id;
     
     const { data: callData, error: callError } = await supabase
       .from('calls')
       .insert({
         caller_id: callerId,
-        caller_type: 'customer',
+        caller_type: callerType,
         receiver_id: receiverId, 
         receiver_type: 'admin',
         status: 'ringing',
