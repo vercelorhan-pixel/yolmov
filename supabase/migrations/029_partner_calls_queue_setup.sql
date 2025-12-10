@@ -33,17 +33,17 @@ DO UPDATE SET
   auto_distribute = true,
   updated_at = NOW();
 
--- 2. Tüm aktif admin agent'ları partner-calls kuyruğuna ata
--- (Eğer zaten atanmışsa tekrar eklenmez)
+-- 2. Her admin agent için ayrı ayrı partner-calls ekle
+-- assigned_queues NULL veya boşsa yeni array oluştur
 UPDATE call_agents
 SET 
-  assigned_queues = CASE
-    WHEN assigned_queues IS NULL THEN ARRAY['partner-calls']::text[]
-    WHEN 'partner-calls' = ANY(assigned_queues) THEN assigned_queues
-    ELSE array_append(assigned_queues, 'partner-calls')
-  END,
+  assigned_queues = COALESCE(assigned_queues, ARRAY[]::text[]) || ARRAY['partner-calls']::text[],
   updated_at = NOW()
-WHERE status IN ('online', 'offline');
+WHERE status IN ('online', 'offline')
+  AND (
+    assigned_queues IS NULL 
+    OR NOT (assigned_queues @> ARRAY['partner-calls']::text[])
+  );
 
 -- 3. Veritabanı kontrolü için yardımcı sorgu (migration sonrası çalıştırın)
 -- SELECT * FROM call_queues WHERE slug = 'partner-calls';
