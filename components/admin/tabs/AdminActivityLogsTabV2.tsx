@@ -64,16 +64,25 @@ const AdminActivityLogsTab: React.FC = () => {
         startDate = monthAgo.toISOString();
       }
 
+      const queryParams = {
+        limit: 500,
+        userType: userTypeFilter !== 'all' ? userTypeFilter : undefined,
+        activityType: activityTypeFilter !== 'all' ? activityTypeFilter : undefined,
+        trafficSource: trafficSourceFilter !== 'all' ? trafficSourceFilter : undefined,
+        startDate
+      };
+
+      console.log('🔍 [AdminActivityLogsTab] Loading data with filters:', queryParams);
+
       const [logsData, statsData] = await Promise.all([
-        getActivityLogs({
-          limit: 500,
-          userType: userTypeFilter !== 'all' ? userTypeFilter : undefined,
-          activityType: activityTypeFilter !== 'all' ? activityTypeFilter : undefined,
-          trafficSource: trafficSourceFilter !== 'all' ? trafficSourceFilter : undefined,
-          startDate
-        }),
+        getActivityLogs(queryParams),
         getActivityStats()
       ]);
+
+      console.log('📊 [AdminActivityLogsTab] Loaded data:', {
+        logsCount: logsData.length,
+        filters: queryParams
+      });
 
       setActivities(logsData);
       setStats(statsData);
