@@ -47,7 +47,7 @@ export interface CallContextType {
   error: string | null;
   
   // Aksiyonlar
-  startCall: (receiverId: string, receiverType?: 'customer' | 'partner' | 'admin', existingCallId?: string) => Promise<void>;
+  startCall: (receiverId: string, receiverType?: 'customer' | 'partner' | 'admin', existingCallId?: string, receiverName?: string) => Promise<void>;
   answerCall: () => Promise<void>;
   answerCallById: (callId: string) => Promise<void>; // Yeni: ID ile cevapla
   rejectCall: () => Promise<void>;
@@ -551,8 +551,11 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Partner aramayı cevaplayınca 1 kredi düşer
   // =====================================================
   
-  const startCall = async (receiverId: string, receiverType: 'customer' | 'partner' | 'admin' = 'partner', existingCallId?: string) => {
+  const startCall = async (receiverId: string, receiverType: 'customer' | 'partner' | 'admin' = 'partner', existingCallId?: string, receiverName?: string) => {
     const user = getCurrentUser(); // Her zaman bir user döner (anonim dahil)
+    
+    // receiverName yoksa, receiverType'a göre varsayılan isim belirle
+    const displayName = receiverName || (receiverType === 'admin' ? 'Yolmov Destek' : receiverType === 'partner' ? 'Partner' : 'Müşteri');
     
     // Eğer mevcut call ID varsa, ref'i set et
     if (existingCallId) {
@@ -738,6 +741,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           callerName: user.name,
           callerType: user.type,
           receiverId: receiverId,
+          receiverName: displayName,
           receiverType: receiverType,
           status: 'calling',
           startedAt: call.started_at,

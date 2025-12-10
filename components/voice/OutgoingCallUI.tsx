@@ -139,7 +139,7 @@ const OutgoingCallUI: React.FC = () => {
             transition={{ delay: 0.2 }}
             className="text-3xl font-bold text-white mb-2"
           >
-            {currentCall?.receiverName || 'Partner'}
+            {currentCall?.receiverName || (currentCall?.receiverType === 'admin' ? 'Yolmov Destek' : 'Partner')}
           </motion.h2>
 
           {/* Aranıyor Animasyonu */}
@@ -151,7 +151,7 @@ const OutgoingCallUI: React.FC = () => {
           >
             <Loader2 size={20} className="text-orange-400 animate-spin" />
             <span className="text-white/70 text-lg">
-              Aranıyor{dots}
+              {currentCall?.receiverType === 'admin' ? 'Destek hattı aranıyor' : 'Aranıyor'}{dots}
             </span>
           </motion.div>
 
@@ -162,7 +162,9 @@ const OutgoingCallUI: React.FC = () => {
             transition={{ delay: 0.5 }}
             className="text-white/40 text-sm mt-8 max-w-xs"
           >
-            Partner cevapladığında görüşme başlayacak
+            {currentCall?.receiverType === 'admin' 
+              ? 'Yolmov temsilcisi cevapladığında görüşme başlayacak'
+              : 'Partner cevapladığında görüşme başlayacak'}
           </motion.p>
         </div>
 

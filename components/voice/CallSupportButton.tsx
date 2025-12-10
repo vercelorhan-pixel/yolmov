@@ -73,7 +73,8 @@ const CallSupportButton: React.FC<CallSupportButtonProps> = ({
           
           // WebRTC aramasını başlat - Mevcut call_id'yi kullan, yeni kayıt oluşturma
           // Bu mikrofon izni isteyecek ve OutgoingCallUI gösterecek
-          await startCall(callData.receiver_id, 'admin', assignment.call_id!);
+          // receiverName olarak "Yolmov Destek" geçir - B2C kullanıcı Yolmov'u arıyor
+          await startCall(callData.receiver_id, 'admin', assignment.call_id!, 'Yolmov Destek');
           setShowModal(false);
         } else {
           throw new Error('Agent bilgisi alınamadı');
