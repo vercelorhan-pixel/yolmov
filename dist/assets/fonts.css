@@ -1,13 +1,13 @@
 @font-face {
   font-family: 'Yolmov';
-  src: url('/services/yolmov.otf') format('opentype');
+  src: url('/assets/yolmov.otf') format('opentype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
 }
 
 .yolmov-logo {
-  font-family: 'Yolmov', sans-serif;
+  font-family: 'Yolmov', 'Montserrat', sans-serif;
   font-weight: normal;
-  letter-spacing: 0.00em;
+  letter-spacing: 0;
 }
