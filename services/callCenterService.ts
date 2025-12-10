@@ -302,12 +302,83 @@ export async function addToQueue(params: {
   targetPartnerId?: string;
 }): Promise<CallQueueAssignment | null> {
   try {
+    console.log('🔍 [CallCenter] addToQueue called with:', {
+      queueSlug: params.queueSlug,
+      sourceType: params.sourceType,
+      sourcePage: params.sourcePage
+    });
+    
     // Havuzu bul
     const queue = await getQueueBySlug(params.queueSlug);
     if (!queue) {
       console.error('❌ [CallCenter] Queue not found:', params.queueSlug);
-      return null;
+      
+      // Fallback: Tüm kuyruklari listele
+      const allQueues = await getCallQueues();
+      console.log('📋 [CallCenter] Available queues:', allQueues.map(q => q.slug));
+      
+      // Eğer hiç queue yoksa, migration çalışmamış demektir
+      if (allQueues.length === 0) {
+        throw new Error('MIGRATION_NOT_RUN: Call center tables are not initialized. Please run migration 027.');
+      }
+      
+      // İlk aktif kuyruğu kullan (fallback)
+      const fallbackQueue = allQueues.find(q => q.is_active);
+      if (!fallbackQueue) {
+        throw new Error('NO_ACTIVE_QUEUE: No active queue found.');
+      }
+      
+      console.warn('⚠️ [CallCenter] Using fallback queue:', fallbackQueue.slug);
+      // Fallback queue ile devam et
+      const queueToUse = fallbackQueue;
+      
+      console.log('📝 [CallCenter] Adding to queue with data:', {
+        queue_id: queueToUse.id,
+        source_type: params.sourceType,
+        source_page: params.sourcePage,
+        caller_name: params.callerName,
+        caller_phone: params.callerPhone
+      });
+      
+      // Kuyruğa ekle
+      const { data, error } = await supabase
+        .from('call_queue_assignments')
+        .insert({
+          queue_id: queueToUse.id,
+          source_type: params.sourceType,
+          source_page: params.sourcePage || null,
+          caller_name: params.callerName || null,
+          caller_phone: params.callerPhone || null,
+          caller_email: params.callerEmail || null,
+          caller_message: params.callerMessage || null,
+          target_partner_id: params.targetPartnerId || null,
+          status: 'waiting',
+          queued_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('❌ [CallCenter] Supabase insert error:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw error;
+      }
+      
+      console.log(`✅ [CallCenter] Call added to queue: ${queueToUse.name}`);
+      return data;
     }
+    
+    console.log('📝 [CallCenter] Adding to queue with data:', {
+      queue_id: queue.id,
+      source_type: params.sourceType,
+      source_page: params.sourcePage,
+      caller_name: params.callerName,
+      caller_phone: params.callerPhone
+    });
     
     // Kuyruğa ekle
     const { data, error } = await supabase
@@ -315,19 +386,27 @@ export async function addToQueue(params: {
       .insert({
         queue_id: queue.id,
         source_type: params.sourceType,
-        source_page: params.sourcePage,
-        caller_name: params.callerName,
-        caller_phone: params.callerPhone,
-        caller_email: params.callerEmail,
-        caller_message: params.callerMessage,
-        target_partner_id: params.targetPartnerId,
+        source_page: params.sourcePage || null,
+        caller_name: params.callerName || null,
+        caller_phone: params.callerPhone || null,
+        caller_email: params.callerEmail || null,
+        caller_message: params.callerMessage || null,
+        target_partner_id: params.targetPartnerId || null,
         status: 'waiting',
         queued_at: new Date().toISOString(),
       })
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('❌ [CallCenter] Supabase insert error:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      throw error;
+    }
     
     console.log(`✅ [CallCenter] Call added to queue: ${queue.name}`);
     

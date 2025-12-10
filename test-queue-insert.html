@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Queue Insert</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <h1>Test Call Queue Insert</h1>
+  <button onclick="testInsert()">Test Insert</button>
+  <pre id="result"></pre>
+
+  <script>
+    const supabaseUrl = 'https://uwslxmciglqxpvfbgjzm.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3c2x4bWNpZ2xxeHB2ZmJnanptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQzMzU3NDcsImV4cCI6MjA3OTkxMTc0N30.Pzk2Zrp08-f93VoApIj6QjWx_9nEQSkZFRU_t1UX_ow';
+    
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+    const resultEl = document.getElementById('result');
+
+    async function testInsert() {
+      resultEl.textContent = 'Testing...\n\n';
+      
+      try {
+        // 1. Test: Get queues
+        resultEl.textContent += '1️⃣ Testing getQueues()...\n';
+        const { data: queues, error: queueError } = await supabase
+          .from('call_queues')
+          .select('*');
+        
+        if (queueError) {
+          resultEl.textContent += `❌ Queue fetch error: ${queueError.message}\n`;
+          resultEl.textContent += `   Details: ${JSON.stringify(queueError, null, 2)}\n\n`;
+          return;
+        }
+        
+        resultEl.textContent += `✅ Found ${queues.length} queues\n`;
+        queues.forEach(q => {
+          resultEl.textContent += `   - ${q.name} (${q.slug}) [${q.id}]\n`;
+        });
+        resultEl.textContent += '\n';
+        
+        if (queues.length === 0) {
+          resultEl.textContent += '❌ No queues found! Migration may not have run.\n';
+          return;
+        }
+        
+        // 2. Test: Get specific queue by slug
+        resultEl.textContent += '2️⃣ Testing getQueueBySlug("general-support")...\n';
+        const { data: queue, error: slugError } = await supabase
+          .from('call_queues')
+          .select('*')
+          .eq('slug', 'general-support')
+          .eq('is_active', true)
+          .single();
+        
+        if (slugError) {
+          resultEl.textContent += `❌ Slug query error: ${slugError.message}\n`;
+          resultEl.textContent += `   Code: ${slugError.code}\n`;
+          resultEl.textContent += `   Details: ${JSON.stringify(slugError, null, 2)}\n\n`;
+          return;
+        }
+        
+        resultEl.textContent += `✅ Queue found: ${queue.name} [ID: ${queue.id}]\n\n`;
+        
+        // 3. Test: Insert into call_queue_assignments
+        resultEl.textContent += '3️⃣ Testing insert into call_queue_assignments...\n';
+        const testData = {
+          queue_id: queue.id,
+          source_type: 'web-contact',
+          source_page: '/test',
+          caller_name: 'Test User',
+          caller_phone: '+905551234567',
+          status: 'waiting',
+          queued_at: new Date().toISOString(),
+        };
+        
+        resultEl.textContent += `   Data: ${JSON.stringify(testData, null, 2)}\n\n`;
+        
+        const { data: assignment, error: insertError } = await supabase
+          .from('call_queue_assignments')
+          .insert([testData])
+          .select()
+          .single();
+        
+        if (insertError) {
+          resultEl.textContent += `❌ INSERT ERROR!\n`;
+          resultEl.textContent += `   Message: ${insertError.message}\n`;
+          resultEl.textContent += `   Code: ${insertError.code}\n`;
+          resultEl.textContent += `   Details: ${insertError.details}\n`;
+          resultEl.textContent += `   Hint: ${insertError.hint}\n`;
+          resultEl.textContent += `   Full error: ${JSON.stringify(insertError, null, 2)}\n`;
+          return;
+        }
+        
+        resultEl.textContent += `✅ INSERT SUCCESS!\n`;
+        resultEl.textContent += `   Assignment ID: ${assignment.id}\n`;
+        resultEl.textContent += `   Status: ${assignment.status}\n`;
+        resultEl.textContent += `   Full data: ${JSON.stringify(assignment, null, 2)}\n`;
+        
+      } catch (err) {
+        resultEl.textContent += `❌ EXCEPTION: ${err.message}\n`;
+        resultEl.textContent += `   ${err.stack}\n`;
+      }
+    }
+  </script>
+</body>
+</html>
