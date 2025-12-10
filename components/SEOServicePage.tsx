@@ -384,12 +384,12 @@ const SEOServicePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Partner Ol CTA */}
+            {/* Hizmet Veren Ol CTA */}
             <div className="bg-gradient-to-br from-purple-600 to-indigo-600 rounded-3xl p-8 text-white shadow-xl">
               <div className="flex items-center gap-3 mb-4">
                 <TrendingUp size={32} />
                 <h3 className="text-2xl font-bold">
-                  {districtData.name} Bölgesinde Partner misiniz?
+                  Hizmet Veren Ol
                 </h3>
               </div>
               <p className="text-purple-100 mb-6 leading-relaxed">
@@ -418,7 +418,7 @@ const SEOServicePage: React.FC = () => {
                 to="/partner-basvuru"
                 className="block w-full py-4 px-6 bg-white text-purple-600 font-bold rounded-xl hover:bg-purple-50 transition-all shadow-lg text-center text-lg"
               >
-                PARTNER BAŞVURUSU YAP
+                HİZMET VEREN OL
               </Link>
               <p className="text-xs text-purple-200 mt-3 text-center">
                 Onay süreci 24 saat • Ücretsiz eğitim ve kurulum
@@ -464,31 +464,45 @@ const SEOServicePage: React.FC = () => {
 
           {/* Sağ Kolon - İlgili Linkler */}
           <div className="space-y-6">
-            {/* Aynı İldeki Diğer İlçeler */}
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-              <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <MapPin size={20} className="text-brand-orange" />
-                {cityData.name} Diğer Bölgeler
-              </h3>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {cityData.districts
-                  .filter(d => d.slug !== districtData.slug)
-                  .slice(0, 15)
-                  .map((d) => (
-                    <Link
-                      key={d.slug}
-                      to={`/${service}/${cityData.slug}/${d.slug}`}
-                      className="block text-sm text-slate-700 hover:text-brand-orange hover:bg-orange-50 px-3 py-2 rounded-lg transition-all"
-                    >
-                      {d.name} {serviceInfo.shortTitle} →
-                    </Link>
-                  ))}
+            {/* Hizmet Veren Ol CTA - Sidebar */}
+            <div className="bg-gradient-to-br from-purple-600 to-indigo-600 rounded-3xl p-8 text-white shadow-xl">
+              <div className="flex items-center gap-3 mb-4">
+                <TrendingUp size={32} />
+                <h3 className="text-2xl font-bold">
+                  Hizmet Veren Ol
+                </h3>
               </div>
-              {cityData.districts.length > 15 && (
-                <button className="w-full mt-3 text-sm text-brand-orange font-semibold hover:underline">
-                  Tümünü Gör ({cityData.districts.length - 15} daha)
-                </button>
-              )}
+              <p className="text-purple-100 mb-6 leading-relaxed">
+                {cityData.name} {districtData.name} bölgesinde {serviceInfo.shortTitle} hizmeti mi veriyorsunuz? 
+                Yolmov ile işinizi büyütün, daha fazla müşteriye ulaşın!
+              </p>
+              <ul className="space-y-2 mb-6 text-purple-50">
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-200">✓</span>
+                  <span>Her gün yeni müşteri fırsatları</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-200">✓</span>
+                  <span>Komisyon ödemesi yok, sadece abonelik</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-200">✓</span>
+                  <span>Dijital altyapı ve müşteri yönetimi</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-200">✓</span>
+                  <span>7/24 teknik destek</span>
+                </li>
+              </ul>
+              <Link
+                to="/partner-basvuru"
+                className="block w-full py-4 px-6 bg-white text-purple-600 font-bold rounded-xl hover:bg-purple-50 transition-all shadow-lg text-center text-lg"
+              >
+                HİZMET VEREN OL
+              </Link>
+              <p className="text-xs text-purple-200 mt-3 text-center">
+                Onay süreci 24 saat • Ücretsiz eğitim ve kurulum
+              </p>
             </div>
 
             {/* Diğer Hizmetler */}

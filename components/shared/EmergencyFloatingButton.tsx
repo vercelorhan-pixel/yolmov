@@ -24,6 +24,9 @@ const EmergencyFloatingButton: React.FC<EmergencyFloatingButtonProps> = ({
   service,
   brand
 }) => {
+  // 🚫 ACİL YARDIM BUTONU GEÇİCİ OLARAK DEVRE DIŞI BIRAKILDI
+  return null;
+
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(1);
