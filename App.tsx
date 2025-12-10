@@ -10,6 +10,7 @@ import Campaigns from './components/Campaigns';
 import Footer from './components/Footer';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminProtectedRoute from './components/AdminProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import { trackPageView } from './services/activityTrackerV2';
 
@@ -206,45 +207,47 @@ function App() {
             <Route path="/teklif" element={<ProtectedRoute><QuotePage /></ProtectedRoute>} />
             <Route path="/fiyat-hesapla" element={<ProtectedRoute><PriceCalculatorWizard /></ProtectedRoute>} />
             
-            {/* Admin */}
+            {/* Admin Routes - Protected */}
             <Route path="/admin/giris" element={<AdminLoginPage />} />
             <Route path="/admin/kayit" element={<AdminSignupPage />} />
             <Route path="/operasyon/kayit" element={<AdminSignupPage />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/kullanicilar" element={<AdminDashboard />} />
-            <Route path="/admin/kullanicilar/:id" element={<AdminDashboard />} />
-            <Route path="/admin/partnerler" element={<AdminDashboard />} />
-            <Route path="/admin/partnerler/:id" element={<AdminDashboard />} />
-            <Route path="/admin/partner-onay" element={<AdminDashboard />} />
-            <Route path="/admin/talepler" element={<AdminDashboard />} />
-            <Route path="/admin/musteri-talepleri" element={<AdminDashboard />} />
-            <Route path="/admin/musteri-talepleri/:id" element={<AdminDashboard />} />
-            <Route path="/admin/teklifler" element={<AdminDashboard />} />
-            <Route path="/admin/teklifler/:id" element={<AdminDashboard />} />
-            <Route path="/admin/raporlar" element={<AdminDashboard />} />
-            <Route path="/admin/belgeler" element={<AdminDashboard />} />
-            <Route path="/admin/filo" element={<AdminDashboard />} />
-            <Route path="/admin/filo/:vehicleId" element={<AdminDashboard />} />
-            <Route path="/admin/degerlendirmeler" element={<AdminDashboard />} />
-            <Route path="/admin/degerlendirmeler/:id" element={<AdminDashboard />} />
-            <Route path="/admin/finansal" element={<AdminDashboard />} />
-            <Route path="/admin/krediler" element={<AdminDashboard />} />
-            <Route path="/admin/is-gecmisi" element={<AdminDashboard />} />
-            <Route path="/admin/admin-kullanicilari" element={<AdminDashboard />} />
-            <Route path="/admin/partner-vitrin" element={<AdminDashboard />} />
-            <Route path="/admin/hizmet-bolgeleri" element={<AdminDashboard />} />
-            <Route path="/admin/kampanyalar" element={<AdminDashboard />} />
-            <Route path="/admin/aktivite" element={<AdminDashboard />} />
-            <Route path="/admin/cagri-merkezi" element={<AdminDashboard />} />
-            <Route path="/admin/canli-gorusmeler" element={<AdminDashboard />} />
-            <Route path="/admin/cagri-kayitlari" element={<AdminDashboard />} />
-            {/* Kullanıcı ve Partner detayları artık AdminDashboard içinde gösteriliyor */}
-            {/* Talep detayları da AdminDashboard içinde gösteriliyor */}
-            <Route path="/admin/talepler/lead/:id" element={<AdminDashboard />} />
-            <Route path="/admin/talepler/alan/:id" element={<AdminDashboard />} />
-            <Route path="/admin/talepler/destek/:id" element={<AdminDashboard />} />
-            {/* Teklif, Filo ve Review detayları artık AdminDashboard içinde panel olarak gösteriliyor */}
-            <Route path="/admin/sistem-loglari" element={<AdminSystemLogs />} />
+            
+            {/* Protected Admin Dashboard Routes */}
+            <Route path="/admin" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/kullanicilar" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/kullanicilar/:id" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/partnerler" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/partnerler/:id" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/partner-onay" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/talepler" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/musteri-talepleri" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/musteri-talepleri/:id" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/teklifler" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/teklifler/:id" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/raporlar" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/belgeler" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/filo" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/filo/:vehicleId" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/degerlendirmeler" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/degerlendirmeler/:id" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/finansal" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/krediler" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/is-gecmisi" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/admin-kullanicilari" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/partner-vitrin" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/hizmet-bolgeleri" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/kampanyalar" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/aktivite" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/cagri-merkezi" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/canli-gorusmeler" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/cagri-kayitlari" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            
+            {/* Detail Routes */}
+            <Route path="/admin/talepler/lead/:id" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/talepler/alan/:id" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            <Route path="/admin/talepler/destek/:id" element={<AdminProtectedRoute><AdminDashboard /></AdminProtectedRoute>} />
+            
+            <Route path="/admin/sistem-loglari" element={<AdminProtectedRoute><AdminSystemLogs /></AdminProtectedRoute>} />
             
             {/* Special Pages */}
             <Route path="/bildirim-test" element={<NotificationTestPage />} />
