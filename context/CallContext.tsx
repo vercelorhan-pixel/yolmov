@@ -964,10 +964,50 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleCallEnded('peer_closed');
       });
       
-      // 9. 30 saniye cevapsız timeout
+      // 9. SDP Answer'ı dinle (Partner cevapladığında DB'ye yazılan answer'ı al)
+      // Bu olmadan WebRTC connection tamamlanamaz!
+      const answerSubscription = supabase
+        .channel(`call-answer-${callIdRef.current}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'calls',
+            filter: `id=eq.${callIdRef.current}`,
+          },
+          async (payload: any) => {
+            console.log('📞 [CallContext] Call updated:', payload);
+            
+            // Partner cevapladığında sdp_answer gelir
+            if (payload.new.sdp_answer && !peer.destroyed) {
+              console.log('📞 [CallContext] Got SDP answer from partner, signaling peer...');
+              try {
+                peer.signal(payload.new.sdp_answer);
+                console.log('✅ [CallContext] SDP answer signaled successfully');
+              } catch (signalError) {
+                console.error('❌ [CallContext] Failed to signal SDP answer:', signalError);
+              }
+            }
+            
+            // Partner reddettiğinde
+            if (payload.new.status === 'rejected') {
+              console.log('📞 [CallContext] Call rejected by partner');
+              stopWaitingTone();
+              setError('Arama reddedildi');
+              handleCallEnded('rejected');
+            }
+          }
+        )
+        .subscribe();
+      
+      console.log('📞 [CallContext] Subscribed to SDP answer updates');
+      
+      // 10. 30 saniye cevapsız timeout
       setTimeout(() => {
         if (callStatus === 'calling' && callIdRef.current) {
           console.log('📞 [CallContext] Call timeout - no answer');
+          answerSubscription.unsubscribe();
           supabase
             .from('calls')
             .update({ status: 'missed', ended_at: new Date().toISOString() })
