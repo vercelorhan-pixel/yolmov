@@ -1,9 +1,15 @@
 -- ============================================
--- EMAIL CONFIRMATION FIX
+-- EMAIL CONFIRMATION FIX - ADIM ADIM
 -- Partner kayıtlarında email confirmation gereksinimini kaldırma
 -- ============================================
+-- ⚠️ Bu komutlar GÜVENLİ - Transaction içinde çalışabilir
+-- ============================================
 
--- 1. Email confirmation bekleyen partner kullanıcılarını listele
+-- ============================================
+-- ADIM 1: Email confirmation bekleyen partnerleri listele
+-- ============================================
+-- Bu komutu ÖNCE çalıştırın (kaç partner etkilenecek göreceksiniz):
+
 SELECT 
   u.id,
   u.email,
@@ -20,7 +26,13 @@ WHERE u.raw_user_meta_data->>'user_type' = 'partner'
   AND u.email_confirmed_at IS NULL
 ORDER BY u.created_at DESC;
 
--- 2. Tüm partner kullanıcılarını otomatik onayla (email confirmation'ı kaldır)
+-- 📊 Not edin: Kaç satır döndü? Bu sayıda partner güncellenecek
+
+-- ============================================
+-- ADIM 2: Partner kullanıcılarını otomatik onayla
+-- ============================================
+-- Bu komutu çalıştırın (email confirmation'ı kaldırır):
+
 UPDATE auth.users 
 SET 
   email_confirmed_at = NOW(),
@@ -28,7 +40,13 @@ SET
 WHERE raw_user_meta_data->>'user_type' = 'partner'
   AND email_confirmed_at IS NULL;
 
--- 3. Sonuçları kontrol et
+-- ✅ Başarılı mesajı: "X rows updated" (X = ADIM 1'deki sayı olmalı)
+
+-- ============================================
+-- ADIM 3: Sonuçları kontrol et
+-- ============================================
+-- Güncellemelerin başarılı olduğunu doğrulayın:
+
 SELECT 
   u.id,
   u.email,
@@ -40,6 +58,8 @@ LEFT JOIN partners p ON u.id = p.id
 WHERE u.raw_user_meta_data->>'user_type' = 'partner'
 ORDER BY u.created_at DESC
 LIMIT 20;
+
+-- ✅ Tüm partnerlerin email_confirmed_at değeri DOLU olmalı (NULL olmamalı)
 
 -- ============================================
 -- SUPABASE DASHBOARD AYARLARI

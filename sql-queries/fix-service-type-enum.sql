@@ -1,24 +1,52 @@
 -- ============================================
--- SERVICE TYPE ENUM FIX
--- Eksik hizmet türlerini enum'a ekleme
+-- SERVICE TYPE ENUM FIX - ADIM ADIM
+-- ============================================
+-- ⚠️ KRİTİK: PostgreSQL enum'larına değer ekleme TRANSACTION DIŞINDA yapılmalıdır!
+-- Hata: "unsafe use of new value of enum type" → Transaction içinde çalıştırıldı
+-- Çözüm: Her komutu TEK TEK, AYRI AYRI çalıştırın (BEGIN/COMMIT KULLANMAYIN)
 -- ============================================
 
--- Mevcut enum değerlerini kontrol et
-SELECT enum_range(NULL::service_type);
--- Beklenen: {cekici,aku,lastik,yakit,yardim}
+-- ============================================
+-- ADIM 1: Mevcut enum değerlerini kontrol et
+-- ============================================
+-- Bu komutu ÖNCE çalıştırın:
 
--- Yeni değerleri ekle (PostgreSQL 9.1+)
--- NOT: Her ALTER TYPE komutu AYRI ÇALIŞTIRILMALIDIR (transaction dışında)
+SELECT enum_range(NULL::service_type);
+
+-- Beklenen sonuç: {cekici,aku,lastik,yakit,yardim}
+-- Eğer farklı sonuç gelirse, enum zaten güncellenmiş olabilir
+
+-- ============================================
+-- ADIM 2: 'tamir' değerini ekle
+-- ============================================
+-- Bu komutu SADECE BU KOMUTU çalıştırın (tek başına):
+-- NOT: Supabase SQL Editor'da "Run" butonuna basın, başka komut eklemeyin
 
 ALTER TYPE service_type ADD VALUE IF NOT EXISTS 'tamir';
--- Oto tamir servisleri için
 
-ALTER TYPE service_type ADD VALUE IF NOT EXISTS 'anahtar';  
--- Anahtar çilingir servisleri için
+-- ⏳ Başarılı mesajı bekleyin: "Success. No rows returned"
+-- ❌ Eğer "unsafe use" hatası alırsanız:
+--    1. Sayfayı yenileyin (F5)
+--    2. Yeni bir query açın
+--    3. Sadece bu komutu tekrar çalıştırın
 
--- Sonuçları kontrol et
+-- ============================================
+-- ADIM 3: 'anahtar' değerini ekle
+-- ============================================
+-- Yukarıdaki başarılı olduysa, ŞİMDİ bu komutu çalıştırın:
+
+ALTER TYPE service_type ADD VALUE IF NOT EXISTS 'anahtar';
+
+-- ⏳ Başarılı mesajı bekleyin
+
+-- ============================================
+-- ADIM 4: Sonuçları kontrol et
+-- ============================================
+-- Son olarak bu komutu çalıştırın:
+
 SELECT enum_range(NULL::service_type);
--- Beklenen: {cekici,aku,lastik,yakit,yardim,tamir,anahtar}
+
+-- Beklenen sonuç: {cekici,aku,lastik,yakit,yardim,tamir,anahtar}
 
 -- ============================================
 -- NOT: PostgreSQL enum'larına değer ekleme sınırlamaları:
