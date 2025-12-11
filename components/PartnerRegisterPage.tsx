@@ -8,9 +8,7 @@ import {
 import { CITIES_WITH_DISTRICTS } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { supabase } from '../services/supabase';
-import { validateEmail, validatePhone, validateTCOrVKN } from '../services/validation';
-import { compressImage } from '../utils/imageCompression';
+import { validateEmail, validatePhone } from '../services/validation';
 import { SuccessToast, ErrorToast } from './shared/UIComponents';
 import { sendPartnerSubmissionEmail } from '../services/email';
 
@@ -35,26 +33,18 @@ const PartnerRegisterPage: React.FC = () => {
     firstName: '',
     lastName: '',
     companyName: '',
-    taxNumber: '',
     sector: '',
     city: '',
     district: '',
     phone: '',
     email: '',
-    vehicleCount: '',
-    vehicleTypes: '',
-      password: '',
+    password: '',
   });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
-   const [successMessage, setSuccessMessage] = useState('');
-  const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
-  const [uploadedDocs, setUploadedDocs] = useState<{
-    commercialRegistry?: string;
-    vehicleLicense?: string;
-  }>({});
+  const [successMessage, setSuccessMessage] = useState('');
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -67,20 +57,12 @@ const PartnerRegisterPage: React.FC = () => {
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
 
-    // Required fields
+    // ✅ SADELEŞT İRİLMİŞ VALİDASYON - Sadece kritik alanlar
     if (!formData.firstName.trim()) errors.firstName = 'Ad gereklidir';
     if (!formData.lastName.trim()) errors.lastName = 'Soyad gereklidir';
-    if (!formData.companyName.trim()) errors.companyName = 'Şirket adı gereklidir';
     if (!formData.sector) errors.sector = 'Hizmet alanı seçiniz';
     if (!formData.city) errors.city = 'Şehir seçiniz';
     if (!formData.district) errors.district = 'İlçe seçiniz';
-
-    // Email validation
-    if (!formData.email.trim()) {
-      errors.email = 'E-posta gereklidir';
-    } else if (!validateEmail(formData.email)) {
-      errors.email = 'Geçerli bir e-posta adresi giriniz';
-    }
 
     // Phone validation
     if (!formData.phone.trim()) {
@@ -89,28 +71,21 @@ const PartnerRegisterPage: React.FC = () => {
       errors.phone = 'Geçerli bir telefon numarası giriniz (örn: 0532 123 45 67)';
     }
 
-    // Tax number or TC validation (10 or 11 digits)
-         // Password validation
-         if (!formData.password.trim()) {
-            errors.password = 'Şifre gereklidir';
-         } else if (formData.password.length < 6) {
-            errors.password = 'Şifre en az 6 karakter olmalıdır';
-         }
-    if (!formData.taxNumber.trim()) {
-      errors.taxNumber = 'TC Kimlik No veya Vergi Kimlik No gereklidir';
-    } else {
-      const validation = validateTCOrVKN(formData.taxNumber);
-      if (!validation.isValid) {
-        errors.taxNumber = validation.message;
-      }
+    // Email validation (opsiyonel - telefon ile de kayıt olabilir)
+    if (formData.email.trim() && !validateEmail(formData.email)) {
+      errors.email = 'Geçerli bir e-posta adresi giriniz';
     }
 
-    // Vehicle count validation
-    if (!formData.vehicleCount.trim()) {
-      errors.vehicleCount = 'Araç sayısı gereklidir';
-    } else if (parseInt(formData.vehicleCount) < 1) {
-      errors.vehicleCount = 'En az 1 araç olmalıdır';
+    // Password validation
+    if (!formData.password.trim()) {
+      errors.password = 'Şifre gereklidir';
+    } else if (formData.password.length < 6) {
+      errors.password = 'Şifre en az 6 karakter olmalıdır';
     }
+
+    // ❌ TCKN/Vergi No KALDIRILDI - Panel'den eklenecek
+    // ❌ Araç sayısı ZORUNLU DEĞİL - Varsayılan 1
+    // ❌ Belge yükleme ZORUNLU DEĞİL - Admin onayından sonra
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -126,65 +101,11 @@ const PartnerRegisterPage: React.FC = () => {
     return mapping[sector] || ['cekici'];
   };
 
-  const handleDocumentUpload = async (docType: 'commercialRegistry' | 'vehicleLicense', file: File) => {
-    setUploadingDoc(docType);
-    
-    try {
-      // 1. Compress image
-      const result = await compressImage(file);
-      const compressedFile = result.compressedFile;
+  // ❌ BELGE YÜKLEME FONKSİYONLARI KALDIRILDI
+  // Artık ilk kayıt sırasında belge yükleme yapılmıyor
+  // Belgeler admin onayından sonra partner panelinden eklenecek
 
-      // 2. Generate unique filename
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `${docType}/${fileName}`; // Simplified path (no nested partner-documents)
-
-      // 3. Upload to Supabase Storage
-      const { data, error } = await supabase.storage
-        .from('partner-documents')
-        .upload(filePath, compressedFile, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-         if (error) {
-            console.error('🔴 Upload error:', error);
-            setSubmissionError('Belge yükleme başarısız. Lütfen tekrar deneyin.');
-            return;
-         }
-
-      // 4. Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('partner-documents')
-        .getPublicUrl(filePath);
-
-      // 5. Save URL to state
-      setUploadedDocs(prev => ({
-        ...prev,
-        [docType]: publicUrl
-      }));
-
-         setSuccessMessage(`Belge başarıyla yüklendi! (%${result.compressionRatio.toFixed(1)} sıkıştırma)`);
-    } catch (err) {
-      console.error('🔴 Document upload error:', err);
-         setSubmissionError('Belge yükleme sırasında bir hata oluştu.');
-    } finally {
-      setUploadingDoc(null);
-    }
-  };
-
-  const triggerFileInput = (docType: 'commercialRegistry' | 'vehicleLicense') => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*,application/pdf';
-    input.onchange = (e: Event) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        handleDocumentUpload(docType, file);
-      }
-    };
-    input.click();
-  };
+  const [registeredCredentials, setRegisteredCredentials] = useState<{email: string; password: string} | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,80 +119,69 @@ const PartnerRegisterPage: React.FC = () => {
     setIsSubmitting(true);
 
       try {
+         // Email yoksa telefon kullan (email format)
+         const emailForAuth = formData.email.trim() || `${formData.phone.replace(/\D/g, '')}@yolmov-temp.local`;
+         
          const result = await (await import('../services/supabaseApi')).default.auth.signUpPartner(
-            formData.email.trim().toLowerCase(),
+            emailForAuth.toLowerCase(),
             formData.password,
             {
                first_name: formData.firstName.trim(),
                last_name: formData.lastName.trim(),
-               company_name: formData.companyName.trim(),
-               tax_number: formData.taxNumber.trim(),
+               company_name: formData.companyName.trim() || `${formData.firstName} ${formData.lastName}`.trim(),
                sector: formData.sector,
                city: formData.city,
                district: formData.district,
                phone: formData.phone.replace(/\s/g, ''),
-               email: formData.email.trim().toLowerCase(),
-               vehicle_count: parseInt(formData.vehicleCount),
-               vehicle_types: formData.vehicleTypes.trim() || 'Genel hizmet aracı',
+               email: emailForAuth.toLowerCase(),
                service_types: mapSectorToServiceTypes(formData.sector),
-               commercial_registry_url: uploadedDocs.commercialRegistry || null,
-               vehicle_license_url: uploadedDocs.vehicleLicense || null,
             }
          );
 
          if (!result?.partner) {
-        console.error('🔴 Supabase Error:', error);
-        
-        if (error.code === '23505') {
-          // Unique constraint violation
-          if (error.message.includes('email')) {
-            setSubmissionError('Bu e-posta adresi zaten kayıtlı. Lütfen giriş yapın.');
-          } else if (error.message.includes('tax_number')) {
-            setSubmissionError('Bu vergi numarası zaten kayıtlı.');
-          } else {
-            setSubmissionError('Bu bilgilerle kayıt zaten mevcut.');
-          }
-        } else {
-          setSubmissionError('Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyiniz.');
-        }
-        return;
-      }
+           setSubmissionError('Kayıt sırasında bir hata oluştu. Lütfen tekrar deneyiniz.');
+           return;
+         }
 
-      console.log('✅ Partner başvurusu başarılı:', result?.partner);
+         console.log('✅ Partner başvurusu başarılı:', result?.partner);
+         
+         // ✅ Kullanıcı bilgilerini kaydet (indirme için)
+         setRegisteredCredentials({
+           email: emailForAuth.toLowerCase(),
+           password: formData.password
+         });
+
          // Success toast
-         setSuccessMessage('Kayıt tamamlandı! E-posta doğrulama linki gönderildi. Onay sonrası giriş yapabilirsiniz.');
+         setSuccessMessage('🎉 Kayıt tamamlandı! Üyelik bilgilerinizi indirin ve admin onayını bekleyin.');
 
          // Transactional email (best-effort; non-blocking)
-         try {
-            await sendPartnerSubmissionEmail(formData.email.trim().toLowerCase(), {
-               firstName: formData.firstName.trim(),
-               lastName: formData.lastName.trim(),
-               companyName: formData.companyName.trim(),
-               sector: formData.sector,
-               city: formData.city,
-               district: formData.district,
-               phone: formData.phone.replace(/\s/g, ''),
-               taxNumber: formData.taxNumber.trim(),
-            });
-         } catch (mailErr) {
-            console.warn('✉️ E-posta bildirimi gönderilemedi:', mailErr);
+         if (formData.email.trim()) {
+           try {
+              await sendPartnerSubmissionEmail(emailForAuth.toLowerCase(), {
+                 firstName: formData.firstName.trim(),
+                 lastName: formData.lastName.trim(),
+                 companyName: formData.companyName.trim() || `${formData.firstName} ${formData.lastName}`,
+                 sector: formData.sector,
+                 city: formData.city,
+                 district: formData.district,
+                 phone: formData.phone.replace(/\s/g, ''),
+                 taxNumber: '',
+              });
+           } catch (mailErr) {
+              console.warn('✉️ E-posta bildirimi gönderilemedi:', mailErr);
+           }
          }
       
-      // Clear form
-      setFormData({
-            firstName: '', lastName: '', companyName: '', taxNumber: '',
-            sector: '', city: '', district: '', phone: '', email: '',
-            vehicleCount: '', vehicleTypes: '', password: '',
-      });
+         // ❌ FORM TEMİZLENMİYOR - Kullanıcı bilgilerini görebilsin
 
-      // Redirect after 2 seconds
-      setTimeout(() => {
-        navigate('/');
-      }, 2000);
-
-    } catch (err) {
+    } catch (err: any) {
       console.error('🔴 Unexpected error:', err);
-      setSubmissionError('Beklenmeyen bir hata oluştu. Lütfen daha sonra tekrar deneyiniz.');
+      
+      if (err.message?.includes('already registered') || err.message?.includes('email')) {
+        setSubmissionError('Bu telefon/e-posta ile kayıt zaten mevcut. Lütfen giriş yapın.');
+      } else {
+        setSubmissionError('Beklenmeyen bir hata oluştu. Lütfen daha sonra tekrar deneyiniz.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -309,13 +219,18 @@ const PartnerRegisterPage: React.FC = () => {
                  Partner Programı
               </span>
               <h1 className="text-4xl md:text-6xl font-display font-bold text-white mb-4 leading-tight">
-                 İşinizi Büyütmenin <br />
-                 <span className="text-brand-orange">En Akıllı Yolu</span>
+                 Hemen Partner Ol, <br />
+                 <span className="text-brand-orange">İş Yakalamaya Başla</span>
               </h1>
               <p className="text-slate-400 text-lg max-w-2xl mx-auto font-light leading-relaxed">
-                 Yolmov iş ortağı olun, binlerce potansiyel müşteriye anında ulaşın. 
-                 Komisyon yok, sürpriz yok, sadece kazanç var.
+                 30 saniyede kayıt ol, admin onayından sonra anında iş almaya başla. 
+                 <strong className="text-white">Komisyon yok, aidat yok</strong>, sadece kazanç var.
               </p>
+              
+              {/* 🔥 FOMO BANNER - Aciliyet yaratır */}
+              <div className="mt-6 inline-block bg-yellow-500 text-slate-900 px-6 py-3 rounded-full font-bold text-sm shadow-xl animate-pulse">
+                 ⚡ Bugün Kayıt Olanlar İlk 3 İş İçin Yolmov Komisyonu Ödemez!
+              </div>
            </motion.div>
         </div>
       </div>
@@ -326,9 +241,58 @@ const PartnerRegisterPage: React.FC = () => {
             
             {/* LEFT: Form Section */}
             <div className="lg:w-7/12 p-8 md:p-12 lg:p-16">
+               {/* ✅ KAYIT BAŞARILI - ÜYELİK BİLGİLERİ İNDİRME */}
+               {registeredCredentials && (
+                  <div className="mb-8 bg-green-50 border-2 border-green-300 rounded-2xl p-6">
+                     <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 bg-green-500 text-white rounded-full flex items-center justify-center flex-shrink-0">
+                           <CheckCircle2 size={28} />
+                        </div>
+                        <div className="flex-1">
+                           <h3 className="text-lg font-bold text-green-900 mb-2">🎉 Kayıt Tamamlandı!</h3>
+                           <p className="text-sm text-green-700 mb-4">
+                              Admin onayı sonrası giriş yapabilirsiniz. Bilgilerinizi unutmamak için indirin:
+                           </p>
+                           <div className="bg-white rounded-xl p-4 mb-4 border border-green-200">
+                              <p className="text-xs text-slate-600 mb-1"><strong>E-posta/Kullanıcı Adı:</strong></p>
+                              <p className="font-mono text-sm text-slate-900 mb-3">{registeredCredentials.email}</p>
+                              <p className="text-xs text-slate-600 mb-1"><strong>Şifre:</strong></p>
+                              <p className="font-mono text-sm text-slate-900">{registeredCredentials.password}</p>
+                           </div>
+                           <button
+                              onClick={() => {
+                                 const blob = new Blob([
+                                    `YOLMOV PARTNER ÜYELİK BİLGİLERİ\n` +
+                                    `================================\n\n` +
+                                    `Ad Soyad: ${formData.firstName} ${formData.lastName}\n` +
+                                    `Firma: ${formData.companyName || 'Bireysel'}\n` +
+                                    `Telefon: ${formData.phone}\n\n` +
+                                    `GİRİŞ BİLGİLERİ:\n` +
+                                    `E-posta/Kullanıcı: ${registeredCredentials.email}\n` +
+                                    `Şifre: ${registeredCredentials.password}\n\n` +
+                                    `Durum: Admin onayı bekleniyor\n` +
+                                    `Kayıt Tarihi: ${new Date().toLocaleString('tr-TR')}\n\n` +
+                                    `Not: Admin onayı sonrası https://yolmov.com/partner adresinden giriş yapabilirsiniz.`
+                                 ], { type: 'text/plain' });
+                                 const url = URL.createObjectURL(blob);
+                                 const a = document.createElement('a');
+                                 a.href = url;
+                                 a.download = `yolmov-uyelik-${formData.phone}.txt`;
+                                 a.click();
+                                 URL.revokeObjectURL(url);
+                              }}
+                              className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                           >
+                              📥 Üyelik Bilgilerini İndir
+                           </button>
+                        </div>
+                     </div>
+                  </div>
+               )}
+
                <div className="mb-10">
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">Başvuru Formu</h2>
-                  <p className="text-slate-500 text-sm">Aşağıdaki bilgileri eksiksiz doldurarak aramıza katılın.</p>
+                  <h2 className="text-2xl font-bold text-slate-900 mb-2">Hızlı Kayıt</h2>
+                  <p className="text-slate-500 text-sm">30 saniyede tamamla, hemen iş almaya başla.</p>
                </div>
 
                <form className="space-y-8" onSubmit={handleSubmit}>
@@ -353,16 +317,16 @@ const PartnerRegisterPage: React.FC = () => {
                      )}
                   </div>
 
-                  {/* 2. Kişisel Bilgiler */}
+                  {/* 2. Kişisel Bilgiler (SADELEŞ TİRİLDİ) */}
                   <div className="space-y-4">
-                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Yetkili Bilgileri</label>
+                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Kişisel Bilgiler</label>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                            <div className="bg-slate-50 rounded-xl px-4 py-3 border border-transparent focus-within:border-brand-orange/50 focus-within:bg-white transition-all flex items-center gap-3">
                               <User size={18} className="text-slate-400" />
                               <input 
                                  type="text" 
-                                 placeholder="Adınız" 
+                                 placeholder="Adınız *" 
                                  className="bg-transparent w-full outline-none text-sm font-medium text-slate-800 placeholder-slate-400"
                                  value={formData.firstName}
                                  onChange={(e) => handleInputChange('firstName', e.target.value)}
@@ -377,7 +341,7 @@ const PartnerRegisterPage: React.FC = () => {
                               <User size={18} className="text-slate-400" />
                               <input 
                                  type="text" 
-                                 placeholder="Soyadınız" 
+                                 placeholder="Soyadınız *" 
                                  className="bg-transparent w-full outline-none text-sm font-medium text-slate-800 placeholder-slate-400"
                                  value={formData.lastName}
                                  onChange={(e) => handleInputChange('lastName', e.target.value)}
@@ -392,31 +356,13 @@ const PartnerRegisterPage: React.FC = () => {
                               <Briefcase size={18} className="text-slate-400" />
                               <input 
                                  type="text" 
-                                 placeholder="Firma / İşletme Adı" 
+                                 placeholder="Firma / İşletme Adı (Opsiyonel)" 
                                  className="bg-transparent w-full outline-none text-sm font-medium text-slate-800 placeholder-slate-400"
                                  value={formData.companyName}
                                  onChange={(e) => handleInputChange('companyName', e.target.value)}
                               />
                            </div>
-                           {formErrors.companyName && (
-                              <p className="text-red-500 text-xs font-medium mt-1">{formErrors.companyName}</p>
-                           )}
-                        </div>
-                        <div className="md:col-span-2">
-                           <div className="bg-slate-50 rounded-xl px-4 py-3 border border-transparent focus-within:border-brand-orange/50 focus-within:bg-white transition-all flex items-center gap-3">
-                              <Briefcase size={18} className="text-slate-400" />
-                              <input 
-                                 type="text" 
-                                 placeholder="TC Kimlik No (11 hane) veya Vergi No (10 hane)" 
-                                 className="bg-transparent w-full outline-none text-sm font-medium text-slate-800 placeholder-slate-400"
-                                 value={formData.taxNumber}
-                                 onChange={(e) => handleInputChange('taxNumber', e.target.value)}
-                                 maxLength={11}
-                              />
-                           </div>
-                           {formErrors.taxNumber && (
-                              <p className="text-red-500 text-xs font-medium mt-1">{formErrors.taxNumber}</p>
-                           )}
+                           <p className="text-xs text-slate-500 mt-1">💡 Bireysel çalışıyorsanız boş bırakabilirsiniz</p>
                         </div>
                      </div>
                   </div>
@@ -424,16 +370,17 @@ const PartnerRegisterPage: React.FC = () => {
                   {/* 3. İletişim ve Konum */}
                   <div className="space-y-4">
                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">İletişim & Bölge</label>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="grid grid-cols-1 gap-4">
                         <div>
                            <div className="bg-slate-50 rounded-xl px-4 py-3 border border-transparent focus-within:border-brand-orange/50 focus-within:bg-white transition-all flex items-center gap-3">
                               <Phone size={18} className="text-slate-400" />
                               <input 
                                  type="tel" 
-                                 placeholder="Cep Telefonu (5XX...)" 
+                                 placeholder="Cep Telefonu (5XX XXX XX XX) *" 
                                  className="bg-transparent w-full outline-none text-sm font-medium text-slate-800 placeholder-slate-400"
                                  value={formData.phone}
                                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                                 inputMode="numeric"
                               />
                            </div>
                            {formErrors.phone && (
@@ -445,7 +392,7 @@ const PartnerRegisterPage: React.FC = () => {
                               <Mail size={18} className="text-slate-400" />
                               <input 
                                  type="email" 
-                                 placeholder="E-posta Adresi" 
+                                 placeholder="E-posta (Varsa - Opsiyonel)" 
                                  className="bg-transparent w-full outline-none text-sm font-medium text-slate-800 placeholder-slate-400"
                                  value={formData.email}
                                  onChange={(e) => handleInputChange('email', e.target.value)}
@@ -454,13 +401,14 @@ const PartnerRegisterPage: React.FC = () => {
                            {formErrors.email && (
                               <p className="text-red-500 text-xs font-medium mt-1">{formErrors.email}</p>
                            )}
+                           <p className="text-xs text-slate-500 mt-1">💡 E-posta yoksa sadece telefonla kayıt olabilirsiniz</p>
                         </div>
-                        <div className="md:col-span-2">
+                        <div>
                            <div className="bg-slate-50 rounded-xl px-4 py-3 border border-transparent focus-within:border-brand-orange/50 focus-within:bg-white transition-all flex items-center gap-3">
                               <Lock size={18} className="text-slate-400" />
                               <input 
                                  type="password" 
-                                 placeholder="Şifre (en az 6 karakter)" 
+                                 placeholder="Şifre Oluştur (en az 6 karakter) *" 
                                  className="bg-transparent w-full outline-none text-sm font-medium text-slate-800 placeholder-slate-400"
                                  value={formData.password}
                                  onChange={(e) => handleInputChange('password', e.target.value)}
@@ -470,118 +418,46 @@ const PartnerRegisterPage: React.FC = () => {
                               <p className="text-red-500 text-xs font-medium mt-1">{formErrors.password}</p>
                            )}
                         </div>
-                        <div>
-                           <div className="bg-slate-50 rounded-xl px-4 py-3 border border-transparent focus-within:border-brand-orange/50 focus-within:bg-white transition-all flex items-center gap-3">
-                              <MapPin size={18} className="text-slate-400" />
-                              <select 
-                                 className="bg-transparent w-full outline-none text-sm font-medium text-slate-800 cursor-pointer"
-                                 value={formData.city}
-                                 onChange={(e) => handleInputChange('city', e.target.value)}
-                              >
-                                 <option value="">İl Seçiniz</option>
-                                 {Object.keys(CITIES_WITH_DISTRICTS).map(c => <option key={c} value={c}>{c}</option>)}
-                              </select>
+                        <div className="grid grid-cols-2 gap-4">
+                           <div>
+                              <div className="bg-slate-50 rounded-xl px-4 py-3 border border-transparent focus-within:border-brand-orange/50 focus-within:bg-white transition-all flex items-center gap-3">
+                                 <MapPin size={18} className="text-slate-400" />
+                                 <select 
+                                    className="bg-transparent w-full outline-none text-sm font-medium text-slate-800 cursor-pointer"
+                                    value={formData.city}
+                                    onChange={(e) => handleInputChange('city', e.target.value)}
+                                 >
+                                    <option value="">İl Seçiniz *</option>
+                                    {Object.keys(CITIES_WITH_DISTRICTS).map(c => <option key={c} value={c}>{c}</option>)}
+                                 </select>
+                              </div>
+                              {formErrors.city && (
+                                 <p className="text-red-500 text-xs font-medium mt-1">{formErrors.city}</p>
+                              )}
                            </div>
-                           {formErrors.city && (
-                              <p className="text-red-500 text-xs font-medium mt-1">{formErrors.city}</p>
-                           )}
-                        </div>
-                        <div>
-                           <div className="bg-slate-50 rounded-xl px-4 py-3 border border-transparent focus-within:border-brand-orange/50 focus-within:bg-white transition-all flex items-center gap-3">
-                              <MapPin size={18} className="text-slate-400" />
-                              <select 
-                                 className="bg-transparent w-full outline-none text-sm font-medium text-slate-800"
-                                 value={formData.district}
-                                 onChange={(e) => handleInputChange('district', e.target.value)}
-                                 disabled={!formData.city}
-                              >
-                                 <option value="" className="text-slate-400">İlçe Seçiniz</option>
-                                 {formData.city && CITIES_WITH_DISTRICTS[formData.city].map(d => <option key={d} value={d}>{d}</option>)}
-                              </select>
+                           <div>
+                              <div className="bg-slate-50 rounded-xl px-4 py-3 border border-transparent focus-within:border-brand-orange/50 focus-within:bg-white transition-all flex items-center gap-3">
+                                 <MapPin size={18} className="text-slate-400" />
+                                 <select 
+                                    className="bg-transparent w-full outline-none text-sm font-medium text-slate-800"
+                                    value={formData.district}
+                                    onChange={(e) => handleInputChange('district', e.target.value)}
+                                    disabled={!formData.city}
+                                 >
+                                    <option value="" className="text-slate-400">İlçe Seçiniz *</option>
+                                    {formData.city && CITIES_WITH_DISTRICTS[formData.city].map(d => <option key={d} value={d}>{d}</option>)}
+                                 </select>
+                              </div>
+                              {formErrors.district && (
+                                 <p className="text-red-500 text-xs font-medium mt-1">{formErrors.district}</p>
+                              )}
                            </div>
-                           {formErrors.district && (
-                              <p className="text-red-500 text-xs font-medium mt-1">{formErrors.district}</p>
-                           )}
                         </div>
                      </div>
                   </div>
 
-                  {/* 4. Araç & Ekipman Bilgileri */}
-                  <div className="space-y-4">
-                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Araç & Ekipman</label>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                           <div className="bg-slate-50 rounded-xl px-4 py-3 border border-transparent focus-within:border-brand-orange/50 focus-within:bg-white transition-all flex items-center gap-3">
-                              <Truck size={18} className="text-slate-400" />
-                              <input 
-                                 type="number" 
-                                 placeholder="Araç Sayısı" 
-                                 className="bg-transparent w-full outline-none text-sm font-medium text-slate-800 placeholder-slate-400"
-                                 value={formData.vehicleCount}
-                                 onChange={(e) => handleInputChange('vehicleCount', e.target.value)}
-                              />
-                           </div>
-                           {formErrors.vehicleCount && (
-                              <p className="text-red-500 text-xs font-medium mt-1">{formErrors.vehicleCount}</p>
-                           )}
-                        </div>
-                        <div className="bg-slate-50 rounded-xl px-4 py-3 border border-transparent focus-within:border-brand-orange/50 focus-within:bg-white transition-all flex items-center gap-3">
-                           <Wrench size={18} className="text-slate-400" />
-                           <input 
-                              type="text" 
-                              placeholder="Araç Tipleri (örn: Çekici, Tamirat)" 
-                              className="bg-transparent w-full outline-none text-sm font-medium text-slate-800 placeholder-slate-400"
-                              value={formData.vehicleTypes}
-                              onChange={(e) => handleInputChange('vehicleTypes', e.target.value)}
-                           />
-                        </div>
-                     </div>
-                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                        <p className="text-xs text-blue-700 font-medium mb-2">📄 Belge Yükleme (Opsiyonel)</p>
-                        <div className="flex flex-col gap-2">
-                           <button 
-                              type="button"
-                              onClick={() => triggerFileInput('commercialRegistry')}
-                              disabled={uploadingDoc === 'commercialRegistry'}
-                              className="px-4 py-2 bg-white border border-blue-300 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                           >
-                              {uploadingDoc === 'commercialRegistry' ? (
-                                <>
-                                  <Loader size={14} className="animate-spin" />
-                                  Yükleniyor...
-                                </>
-                              ) : uploadedDocs.commercialRegistry ? (
-                                <>
-                                  <CheckCircle2 size={14} className="text-green-600" />
-                                  Ticari Sicil Gazetesi ✓
-                                </>
-                              ) : (
-                                'Ticari Sicil Gazetesi Yükle'
-                              )}
-                           </button>
-                           <button 
-                              type="button"
-                              onClick={() => triggerFileInput('vehicleLicense')}
-                              disabled={uploadingDoc === 'vehicleLicense'}
-                              className="px-4 py-2 bg-white border border-blue-300 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                           >
-                              {uploadingDoc === 'vehicleLicense' ? (
-                                <>
-                                  <Loader size={14} className="animate-spin" />
-                                  Yükleniyor...
-                                </>
-                              ) : uploadedDocs.vehicleLicense ? (
-                                <>
-                                  <CheckCircle2 size={14} className="text-green-600" />
-                                  Araç Ruhsatı ✓
-                                </>
-                              ) : (
-                                'Ruhsat Fotokopisi Yükle'
-                              )}
-                           </button>
-                        </div>
-                     </div>
-                  </div>
+                  {/* ❌ ARAÇ & BELGE BÖLÜMÜ KALDIRILDI - Sadeleştirme için */}
+                  {/* Araç detayları ve belgeler admin onayından SONRA panel'den eklenecek */}
 
                   {/* Submission Error Message */}
                   {submissionError && (
@@ -593,9 +469,9 @@ const PartnerRegisterPage: React.FC = () => {
                   {/* Submit Button */}
                   <button 
                      type="submit"
-                     disabled={isSubmitting}
+                     disabled={isSubmitting || !!registeredCredentials}
                      className={`w-full py-4 rounded-xl font-bold shadow-xl transition-all transform flex items-center justify-center gap-3 text-lg ${
-                        isSubmitting 
+                        isSubmitting || registeredCredentials
                            ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
                            : 'bg-brand-orange hover:bg-brand-lightOrange text-white shadow-orange-200 hover:-translate-y-1 active:scale-95'
                      }`}
@@ -603,17 +479,33 @@ const PartnerRegisterPage: React.FC = () => {
                      {isSubmitting ? (
                         <>
                            <Loader size={22} className="animate-spin" />
-                           Başvuru Gönderiliyor...
+                           Kayıt Yapılıyor...
+                        </>
+                     ) : registeredCredentials ? (
+                        <>
+                           <CheckCircle2 size={22} />
+                           Kayıt Tamamlandı ✓
                         </>
                      ) : (
                         <>
-                           Başvuruyu Tamamla <ArrowRight size={22} />
+                           Ücretsiz Hesabımı Oluştur 🚀
                         </>
                      )}
                   </button>
-                  <p className="text-center text-xs text-slate-400">
-                     Başvurarak <a href="#" className="underline hover:text-slate-600">İş Ortaklığı Sözleşmesi</a>'ni kabul etmiş olursunuz.
-                  </p>
+                  
+                  {!registeredCredentials && (
+                     <div className="text-center space-y-2">
+                        <p className="text-xs text-green-600 font-bold">
+                           ✓ Komisyon yok, aidat yok, kayıt tamamen ücretsiz
+                        </p>
+                        <p className="text-xs text-slate-500">
+                           ✓ Belge yükleme işlemini daha sonra yapabilirsiniz
+                        </p>
+                        <p className="text-xs text-slate-400">
+                           Kayıt olarak <a href="#" className="underline hover:text-slate-600">İş Ortaklığı Sözleşmesi</a>'ni kabul etmiş olursunuz.
+                        </p>
+                     </div>
+                  )}
 
                </form>
             </div>

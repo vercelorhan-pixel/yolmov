@@ -255,8 +255,13 @@ export const authApi = {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/email-dogrulama`,
-          data: { user_type: 'partner', first_name: partnerData.first_name, last_name: partnerData.last_name }
+          // ✅ EMAIL DOĞRULAMA KALDIRILDI - Otomatik onaylı kullanıcı
+          data: { 
+            user_type: 'partner', 
+            first_name: partnerData.first_name, 
+            last_name: partnerData.last_name,
+            email_confirmed: true  // Auto-confirm
+          }
         }
       });
       if (authError) throw authError;
@@ -264,22 +269,22 @@ export const authApi = {
 
       const dbPartner = {
         id: authData.user.id,
-        name: partnerData.company_name || partnerData.name || '',
+        name: partnerData.company_name || `${partnerData.first_name} ${partnerData.last_name}`.trim() || '',
         first_name: partnerData.first_name || '',
         last_name: partnerData.last_name || '',
         company_name: partnerData.company_name || '',
-        tax_number: partnerData.tax_number || null,
+        tax_number: null,  // ✅ İLK KAYIT SIRASINDA ALINMIYOR - Panel'den eklenecek
         sector: partnerData.sector || null,
         city: partnerData.city || null,
         district: partnerData.district || null,
         phone: partnerData.phone || null,
         email: email,
-        vehicle_count: partnerData.vehicle_count || 0,
-        vehicle_types: partnerData.vehicle_types || null,
+        vehicle_count: partnerData.vehicle_count || 1,  // Default 1 araç
+        vehicle_types: partnerData.vehicle_types || 'Genel Servis Aracı',
         service_types: partnerData.service_types || null,
-        commercial_registry_url: partnerData.commercial_registry_url || null,
-        vehicle_license_url: partnerData.vehicle_license_url || null,
-        status: 'pending',
+        commercial_registry_url: null,  // ✅ Belge yükleme sonraya bırakıldı
+        vehicle_license_url: null,      // ✅ Belge yükleme sonraya bırakıldı
+        status: 'pending',  // ✅ Admin onayı bekleyecek
         rating: 0,
         completed_jobs: 0,
         credits: 0,
