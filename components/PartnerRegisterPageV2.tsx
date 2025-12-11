@@ -5,7 +5,7 @@ import {
    BatteryCharging, Disc, Loader, ArrowLeft
 } from 'lucide-react';
 import CustomSelect from './shared/CustomSelect';
-import { CITIES_WITH_DISTRICTS } from '../constants';
+import { CITIES_WITH_DISTRICTS, SECTOR_TO_SERVICE_TYPE, SERVICE_TYPES } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { validateEmail, validatePhone } from '../services/validation';
@@ -120,13 +120,14 @@ const PartnerRegisterPageV2: React.FC = () => {
   };
 
   const mapSectorsToServiceTypes = (sectors: string[]): string[] => {
-    const mapping: Record<string, string> = {
-      'tow': 'cekici',
-      'tire': 'lastik',
-      'repair': 'tamir',
-      'battery': 'aku',
-    };
-    return sectors.map(s => mapping[s]).filter(Boolean);
+    // ✅ TYPE-SAFE: constants.ts'den SECTOR_TO_SERVICE_TYPE kullanılıyor
+    // Bu mapping veritabanı enum ile senkronize
+    const mapped = sectors
+      .map(sector => SECTOR_TO_SERVICE_TYPE[sector])
+      .filter(Boolean);
+    
+    // Fallback: Eğer hiç mapping yoksa, güvenli default
+    return mapped.length > 0 ? mapped : [SERVICE_TYPES.YARDIM];
   };
 
   const handleSubmit = async () => {

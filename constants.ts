@@ -35,6 +35,35 @@ export const STORAGE_KEYS = {
   language: 'yolmov_language'
 } as const;
 
+// ============================================
+// SERVICE TYPE ENUM (Database Sync)
+// ============================================
+// ⚠️ UYARI: Bu değerler PostgreSQL enum service_type ile TAMAMEN eşleşmelidir
+// Veritabanı: supabase/MASTER_SCHEMA.sql -> CREATE TYPE service_type AS ENUM (...)
+// Güncelleme: sql-queries/fix-service-type-enum.sql
+
+export const SERVICE_TYPES = {
+  CEKICI: 'cekici',      // Çekici hizmeti
+  AKU: 'aku',            // Akü takviyesi
+  LASTIK: 'lastik',      // Lastik değişimi
+  YAKIT: 'yakit',        // Yakıt desteği
+  YARDIM: 'yardim',      // Genel yol yardımı
+  TAMIR: 'tamir',        // Oto tamir (2025-12-11 eklendi)
+  ANAHTAR: 'anahtar',    // Anahtar çilingir (rezerve)
+} as const;
+
+export type ServiceType = typeof SERVICE_TYPES[keyof typeof SERVICE_TYPES];
+
+// Frontend sector → Database service_type mapping
+export const SECTOR_TO_SERVICE_TYPE: Record<string, ServiceType> = {
+  'tow': SERVICE_TYPES.CEKICI,
+  'tire': SERVICE_TYPES.LASTIK,
+  'repair': SERVICE_TYPES.TAMIR,
+  'battery': SERVICE_TYPES.AKU,
+  'fuel': SERVICE_TYPES.YAKIT,
+  'locksmith': SERVICE_TYPES.ANAHTAR,
+};
+
 export const SERVICES: ServiceCategory[] = [
   {
     id: 'tow',

@@ -5,7 +5,7 @@ import {
    CheckCircle2, ArrowRight, Truck, Wrench, 
    BatteryCharging, Disc, ShieldCheck, Zap, TrendingUp, Loader
 } from 'lucide-react';
-import { CITIES_WITH_DISTRICTS } from '../constants';
+import { CITIES_WITH_DISTRICTS, SECTOR_TO_SERVICE_TYPE, SERVICE_TYPES } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { validateEmail, validatePhone } from '../services/validation';
@@ -92,13 +92,9 @@ const PartnerRegisterPage: React.FC = () => {
   };
 
   const mapSectorToServiceTypes = (sector: string): string[] => {
-    const mapping: Record<string, string[]> = {
-      'tow': ['cekici'],
-      'tire': ['lastik'],
-      'repair': ['tamir'],
-      'battery': ['aku'],
-    };
-    return mapping[sector] || ['cekici'];
+    // ✅ TYPE-SAFE: constants.ts'den SECTOR_TO_SERVICE_TYPE kullanılıyor
+    const serviceType = SECTOR_TO_SERVICE_TYPE[sector];
+    return serviceType ? [serviceType] : [SERVICE_TYPES.YARDIM];
   };
 
   // ❌ BELGE YÜKLEME FONKSİYONLARI KALDIRILDI
