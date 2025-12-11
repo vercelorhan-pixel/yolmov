@@ -103,6 +103,21 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // =====================================================
+  // HELPER: Çağrı tipi etiketi (log için)
+  // =====================================================
+  const getCallTypeLabel = (callerType: string, receiverType: string): string => {
+    if (callerType === 'customer' && receiverType === 'partner') {
+      return 'Customer→Partner';
+    } else if (callerType === 'customer' && receiverType === 'admin') {
+      return 'Customer→Support';
+    } else if (callerType === 'partner' && receiverType === 'admin') {
+      return 'Partner→Support';
+    } else {
+      return `${callerType}→${receiverType}`;
+    }
+  };
+  
+  // =====================================================
   // SAYFA YENİLEME ENGELLEME - Çağrı sırasında
   // =====================================================
   
@@ -207,11 +222,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
     
-    console.log('📞 [CallContext] Setting up realtime subscription for user:', currentUser.id);
+    console.log('📞 [CallContext] Setting up realtime subscription for user:', currentUser.id, 'type:', currentUser.type);
     
     // Filtrelenmiş channel - SADECE bu kullanıcıya gelen aramaları dinle
+    // NOT: Supabase Realtime filter birden fazla kolon desteklemiyor, 
+    // bu yüzden receiver_type kontrolünü callback içinde yapıyoruz
     const channel = supabase
-      .channel(`calls_incoming_${currentUser.id}`)
+      .channel(`calls_incoming_${currentUser.id}_${currentUser.type}`)
       .on(
         'postgres_changes',
         {
@@ -223,16 +240,25 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         async (payload) => {
           const newCall = payload.new as any;
           
-          // Ekstra güvenlik kontrolü - receiver_id eşleşmeli
+          // 🛡️ GÜVENLİK KONTROLÜ 1: receiver_id eşleşmeli
           if (newCall.receiver_id !== currentUser.id) {
-            console.log('📞 [CallContext] Call receiver mismatch, ignoring');
+            console.log('📞 [CallContext] Call receiver_id mismatch, ignoring');
+            return;
+          }
+          
+          // 🛡️ GÜVENLİK KONTROLÜ 2: receiver_type da eşleşmeli!
+          // Bu, Partner'ın Admin çağrısını veya Admin'in Partner çağrısını almasını engeller
+          if (newCall.receiver_type !== currentUser.type) {
+            console.log('📞 [CallContext] Call receiver_type mismatch:', newCall.receiver_type, '!==', currentUser.type, '- ignoring');
             return;
           }
           
           // Sadece 'ringing' durumundaki aramaları al
           if (newCall.status !== 'ringing') return;
           
-          console.log('📞 [CallContext] Incoming call FOR ME!', newCall.id);
+          // 📝 Çağrı tipine göre log prefix belirle
+          const callTypeLabel = getCallTypeLabel(newCall.caller_type, newCall.receiver_type);
+          console.log(`📞 [${callTypeLabel}] Incoming call FOR ME!`, newCall.id);
           
           // Caller bilgilerini çek (anonim olabilir)
           let callerData = null;
@@ -656,6 +682,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const startCall = async (receiverId: string, receiverType: 'customer' | 'partner' | 'admin' = 'partner', existingCallId?: string, receiverName?: string) => {
     const user = getCurrentUser(); // Her zaman bir user döner (anonim dahil)
     
+    // 📝 Çağrı tipi etiketi (log için)
+    const callTypeLabel = getCallTypeLabel(user.type, receiverType);
+    
     // receiverName yoksa, receiverType'a göre varsayılan isim belirle
     const displayName = receiverName || (receiverType === 'admin' ? 'Yolmov Destek' : receiverType === 'partner' ? 'Partner' : 'Müşteri');
     
@@ -663,9 +692,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Bu olmadan signal event'i geldiğinde yeni kayıt oluşturulur ve çift call olur
     if (existingCallId) {
       callIdRef.current = existingCallId;
-      console.log('📞 [CallContext] ✅ Using EXISTING call ID (queue):', existingCallId);
+      console.log(`📞 [${callTypeLabel}] ✅ Using EXISTING call ID (queue):`, existingCallId);
     } else {
-      console.log('📞 [CallContext] No existing call ID - will create NEW record');
+      console.log(`📞 [${callTypeLabel}] No existing call ID - will create NEW record`);
     }
     
     try {
@@ -685,7 +714,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         startedAt: new Date().toISOString(),
       });
       
-      console.log('📞 [CallContext] Starting call to:', receiverId, 'type:', receiverType, 'displayName:', displayName);
+      console.log(`📞 [${callTypeLabel}] Starting call to:`, receiverId, 'displayName:', displayName);
       
       // 2. Mikrofon izni al
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -701,7 +730,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // 🔊 1. KAYIT UYARISI SESİNİ OYNAT - Kullanıcı mikrofon izninden sonra duyar
       // Kalite standartları gereği görüşme öncesi kullanıcıya bilgi verilmeli
-      console.log('🔊 [CallContext] Playing call recording notice...');
+      console.log(`🔊 [${callTypeLabel}] Playing call recording notice...`);
       
       try {
         // Safari uyumlu audio oluştur
@@ -1001,8 +1030,9 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // =====================================================
-  // ARAMAYI CEVAPLA (Partner)
+  // ARAMAYI CEVAPLA (Partner veya Admin)
   // Partner aramayı cevapladığında 1 kredi düşer
+  // Admin cevapladığında kredi düşmez
   // =====================================================
   
   const answerCall = async () => {
@@ -1013,8 +1043,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     const user = getCurrentUser();
     
-    // Partner için kredi kontrolü
-    if (user?.type === 'partner' && !user.isAnonymous) {
+    // 📝 Çağrı tipi etiketi (log için)
+    const callTypeLabel = getCallTypeLabel(currentCall.callerType, user.type);
+    console.log(`📞 [${callTypeLabel}] Answering call:`, callIdRef.current);
+    
+    // Partner için kredi kontrolü (Customer→Partner aramasında)
+    // Admin cevaplarken (Customer→Support veya Partner→Support) kredi düşmez!
+    if (user?.type === 'partner' && !user.isAnonymous && currentCall.receiverType === 'partner') {
       try {
         // Mevcut kredi bakiyesini kontrol et
         const { data: creditData } = await supabase
