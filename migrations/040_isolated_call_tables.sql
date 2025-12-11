@@ -55,16 +55,16 @@ CREATE TABLE IF NOT EXISTS public.customer_partner_calls (
 );
 
 -- İndeksler: Müşteri → Partner
-CREATE INDEX idx_cpc_customer_id ON public.customer_partner_calls(customer_id);
-CREATE INDEX idx_cpc_partner_id ON public.customer_partner_calls(partner_id);
-CREATE INDEX idx_cpc_status ON public.customer_partner_calls(status);
-CREATE INDEX idx_cpc_started_at ON public.customer_partner_calls(started_at DESC);
-CREATE INDEX idx_cpc_request_id ON public.customer_partner_calls(request_id) WHERE request_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_cpc_customer_id ON public.customer_partner_calls(customer_id);
+CREATE INDEX IF NOT EXISTS idx_cpc_partner_id ON public.customer_partner_calls(partner_id);
+CREATE INDEX IF NOT EXISTS idx_cpc_status ON public.customer_partner_calls(status);
+CREATE INDEX IF NOT EXISTS idx_cpc_started_at ON public.customer_partner_calls(started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cpc_request_id ON public.customer_partner_calls(request_id) WHERE request_id IS NOT NULL;
 
 -- RLS Policies: Müşteri → Partner
 ALTER TABLE public.customer_partner_calls ENABLE ROW LEVEL SECURITY;
 
--- Policy 1: Müşteri kendi aramalarını görebilir
+DROP POLICY IF EXISTS "customer_partner_calls_customer_select" ON public.customer_partner_calls;
 CREATE POLICY "customer_partner_calls_customer_select" 
 ON public.customer_partner_calls 
 FOR SELECT 
@@ -73,7 +73,7 @@ USING (
   customer_id LIKE 'anon_%'
 );
 
--- Policy 2: Partner kendi aramalarını görebilir
+DROP POLICY IF EXISTS "customer_partner_calls_partner_select" ON public.customer_partner_calls;
 CREATE POLICY "customer_partner_calls_partner_select" 
 ON public.customer_partner_calls 
 FOR SELECT 
@@ -81,13 +81,13 @@ USING (
   partner_id = auth.uid()
 );
 
--- Policy 3: Müşteri arama başlatabilir
+DROP POLICY IF EXISTS "customer_partner_calls_customer_insert" ON public.customer_partner_calls;
 CREATE POLICY "customer_partner_calls_customer_insert" 
 ON public.customer_partner_calls 
 FOR INSERT 
 WITH CHECK (true);
 
--- Policy 4: Hem müşteri hem partner güncelleyebilir (SDP answer vs)
+DROP POLICY IF EXISTS "customer_partner_calls_update" ON public.customer_partner_calls;
 CREATE POLICY "customer_partner_calls_update" 
 ON public.customer_partner_calls 
 FOR UPDATE 
@@ -106,6 +106,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_customer_partner_calls_timestamp ON public.customer_partner_calls;
 CREATE TRIGGER trigger_update_customer_partner_calls_timestamp
   BEFORE UPDATE ON public.customer_partner_calls
   FOR EACH ROW
@@ -155,18 +156,18 @@ CREATE TABLE IF NOT EXISTS public.customer_support_calls (
 );
 
 -- İndeksler: Müşteri → Destek
-CREATE INDEX idx_csc_customer_id ON public.customer_support_calls(customer_id);
-CREATE INDEX idx_csc_admin_id ON public.customer_support_calls(admin_id);
-CREATE INDEX idx_csc_queue_id ON public.customer_support_calls(queue_id);
-CREATE INDEX idx_csc_status ON public.customer_support_calls(status);
-CREATE INDEX idx_csc_started_at ON public.customer_support_calls(started_at DESC);
-CREATE INDEX idx_csc_waiting ON public.customer_support_calls(status, queue_position) 
+CREATE INDEX IF NOT EXISTS idx_csc_customer_id ON public.customer_support_calls(customer_id);
+CREATE INDEX IF NOT EXISTS idx_csc_admin_id ON public.customer_support_calls(admin_id);
+CREATE INDEX IF NOT EXISTS idx_csc_queue_id ON public.customer_support_calls(queue_id);
+CREATE INDEX IF NOT EXISTS idx_csc_status ON public.customer_support_calls(status);
+CREATE INDEX IF NOT EXISTS idx_csc_started_at ON public.customer_support_calls(started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_csc_waiting ON public.customer_support_calls(status, queue_position) 
   WHERE status = 'waiting';
 
 -- RLS Policies: Müşteri → Destek
 ALTER TABLE public.customer_support_calls ENABLE ROW LEVEL SECURITY;
 
--- Policy 1: Müşteri kendi aramalarını görebilir
+DROP POLICY IF EXISTS "customer_support_calls_customer_select" ON public.customer_support_calls;
 CREATE POLICY "customer_support_calls_customer_select" 
 ON public.customer_support_calls 
 FOR SELECT 
@@ -175,7 +176,7 @@ USING (
   customer_id LIKE 'anon_%'
 );
 
--- Policy 2: Admin/Agent atanmış aramalarını görebilir
+DROP POLICY IF EXISTS "customer_support_calls_admin_select" ON public.customer_support_calls;
 CREATE POLICY "customer_support_calls_admin_select" 
 ON public.customer_support_calls 
 FOR SELECT 
@@ -187,13 +188,13 @@ USING (
   )
 );
 
--- Policy 3: Müşteri çağrı başlatabilir
+DROP POLICY IF EXISTS "customer_support_calls_customer_insert" ON public.customer_support_calls;
 CREATE POLICY "customer_support_calls_customer_insert" 
 ON public.customer_support_calls 
 FOR INSERT 
 WITH CHECK (true);
 
--- Policy 4: Güncellemeler (SDP exchange, status change)
+DROP POLICY IF EXISTS "customer_support_calls_update" ON public.customer_support_calls;
 CREATE POLICY "customer_support_calls_update" 
 ON public.customer_support_calls 
 FOR UPDATE 
@@ -216,6 +217,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_customer_support_calls_timestamp ON public.customer_support_calls;
 CREATE TRIGGER trigger_update_customer_support_calls_timestamp
   BEFORE UPDATE ON public.customer_support_calls
   FOR EACH ROW
@@ -235,6 +237,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_assign_customer_support_queue_position ON public.customer_support_calls;
 CREATE TRIGGER trigger_assign_customer_support_queue_position
   BEFORE INSERT ON public.customer_support_calls
   FOR EACH ROW
@@ -285,18 +288,18 @@ CREATE TABLE IF NOT EXISTS public.partner_support_calls (
 );
 
 -- İndeksler: Partner → Destek
-CREATE INDEX idx_psc_partner_id ON public.partner_support_calls(partner_id);
-CREATE INDEX idx_psc_admin_id ON public.partner_support_calls(admin_id);
-CREATE INDEX idx_psc_queue_id ON public.partner_support_calls(queue_id);
-CREATE INDEX idx_psc_status ON public.partner_support_calls(status);
-CREATE INDEX idx_psc_started_at ON public.partner_support_calls(started_at DESC);
-CREATE INDEX idx_psc_waiting ON public.partner_support_calls(status, queue_position, priority_level) 
+CREATE INDEX IF NOT EXISTS idx_psc_partner_id ON public.partner_support_calls(partner_id);
+CREATE INDEX IF NOT EXISTS idx_psc_admin_id ON public.partner_support_calls(admin_id);
+CREATE INDEX IF NOT EXISTS idx_psc_queue_id ON public.partner_support_calls(queue_id);
+CREATE INDEX IF NOT EXISTS idx_psc_status ON public.partner_support_calls(status);
+CREATE INDEX IF NOT EXISTS idx_psc_started_at ON public.partner_support_calls(started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_psc_waiting ON public.partner_support_calls(status, queue_position, priority_level) 
   WHERE status = 'waiting';
 
 -- RLS Policies: Partner → Destek
 ALTER TABLE public.partner_support_calls ENABLE ROW LEVEL SECURITY;
 
--- Policy 1: Partner kendi aramalarını görebilir
+DROP POLICY IF EXISTS "partner_support_calls_partner_select" ON public.partner_support_calls;
 CREATE POLICY "partner_support_calls_partner_select" 
 ON public.partner_support_calls 
 FOR SELECT 
@@ -304,7 +307,7 @@ USING (
   partner_id = auth.uid()
 );
 
--- Policy 2: Admin/Agent atanmış aramalarını görebilir
+DROP POLICY IF EXISTS "partner_support_calls_admin_select" ON public.partner_support_calls;
 CREATE POLICY "partner_support_calls_admin_select" 
 ON public.partner_support_calls 
 FOR SELECT 
@@ -316,7 +319,7 @@ USING (
   )
 );
 
--- Policy 3: Partner çağrı başlatabilir
+DROP POLICY IF EXISTS "partner_support_calls_partner_insert" ON public.partner_support_calls;
 CREATE POLICY "partner_support_calls_partner_insert" 
 ON public.partner_support_calls 
 FOR INSERT 
@@ -324,7 +327,7 @@ WITH CHECK (
   partner_id = auth.uid()
 );
 
--- Policy 4: Güncellemeler
+DROP POLICY IF EXISTS "partner_support_calls_update" ON public.partner_support_calls;
 CREATE POLICY "partner_support_calls_update" 
 ON public.partner_support_calls 
 FOR UPDATE 
@@ -346,6 +349,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_partner_support_calls_timestamp ON public.partner_support_calls;
 CREATE TRIGGER trigger_update_partner_support_calls_timestamp
   BEFORE UPDATE ON public.partner_support_calls
   FOR EACH ROW
@@ -365,6 +369,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_assign_partner_support_queue_position ON public.partner_support_calls;
 CREATE TRIGGER trigger_assign_partner_support_queue_position
   BEFORE INSERT ON public.partner_support_calls
   FOR EACH ROW

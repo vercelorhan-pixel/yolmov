@@ -16,6 +16,9 @@ import { trackPageView } from './services/activityTrackerV2';
 
 // Yolmov Voice - Sesli Arama Sistemi
 import { CallProvider } from './context/CallContext';
+import { CustomerPartnerCallProvider } from './context/CustomerToPartnerCallContext';
+import { CustomerSupportCallProvider } from './context/CustomerToSupportCallContext';
+import { PartnerSupportCallProvider } from './context/PartnerToSupportCallContext';
 import { IncomingCallModal, ActiveCallUI, CallStatusIndicator, OutgoingCallUI, CallSupportButton } from './components/voice';
 
 // Lazy load pages for better performance
@@ -149,12 +152,15 @@ function App() {
   return (
     <BrowserRouter>
       <CallProvider>
-        <PageViewTracker />
-        <ErrorBoundary>
-          <AppLayout>
-            <Suspense fallback={<LoadingFallback />}>
+        <CustomerPartnerCallProvider>
+          <CustomerSupportCallProvider>
+            <PartnerSupportCallProvider>
+              <PageViewTracker />
               <ErrorBoundary>
-                <Routes>
+                <AppLayout>
+                  <Suspense fallback={<LoadingFallback />}>
+                    <ErrorBoundary>
+                      <Routes>
             {/* Home */}
             <Route path="/" element={<HomePage />} />
             
@@ -276,22 +282,25 @@ function App() {
           </Routes>
               </ErrorBoundary>
             </Suspense>
-          </AppLayout>
-          
-          {/* Yolmov Voice - Global Arama UI */}
-          <IncomingCallModal />
-          <OutgoingCallUI />
-          <ActiveCallUI 
-            minimized={isCallMinimized} 
-            onMinimize={() => setIsCallMinimized(true)}
-            onMaximize={() => setIsCallMinimized(false)}
-          />
-          <CallStatusIndicator onClick={() => setIsCallMinimized(false)} />
-          
-          
-          {/* Floating Support Call Button - KALDIRILDI (Sayfa bazlı butonlar kullanılacak) */}
-          
-        </ErrorBoundary>
+                </AppLayout>
+                
+                {/* Yolmov Voice - Global Arama UI */}
+                <IncomingCallModal />
+                <OutgoingCallUI />
+                <ActiveCallUI 
+                  minimized={isCallMinimized} 
+                  onMinimize={() => setIsCallMinimized(true)}
+                  onMaximize={() => setIsCallMinimized(false)}
+                />
+                <CallStatusIndicator onClick={() => setIsCallMinimized(false)} />
+                
+                
+                {/* Floating Support Call Button - KALDIRILDI (Sayfa bazlı butonlar kullanılacak) */}
+                
+              </ErrorBoundary>
+            </PartnerSupportCallProvider>
+          </CustomerSupportCallProvider>
+        </CustomerPartnerCallProvider>
       </CallProvider>
       <Analytics />
     </BrowserRouter>

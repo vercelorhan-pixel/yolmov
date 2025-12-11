@@ -9,8 +9,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, X, Loader2, Headphones, AlertCircle } from 'lucide-react';
-import { useCall } from '../../context/CallContext';
-import callCenterService from '../../services/callCenterService';
+import { usePartnerSupportCall } from '../../context/PartnerToSupportCallContext';
+import { supabase } from '../../services/supabase';
 
 interface PartnerCallSupportButtonProps {
   variant?: 'primary' | 'secondary';
@@ -25,7 +25,7 @@ const PartnerCallSupportButton: React.FC<PartnerCallSupportButtonProps> = ({
   className = '',
   label = 'Destek Hattını Ara',
 }) => {
-  const { startCall, callStatus } = useCall();
+  const { callSupport, callStatus, error: contextError } = usePartnerSupportCall();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -58,44 +58,21 @@ const PartnerCallSupportButton: React.FC<PartnerCallSupportButtonProps> = ({
     setShowConfirm(false);
 
     try {
-      // 1. Çağrıyı partner-calls kuyruğuna ekle
-      const assignment = await callCenterService.addToQueue({
-        queueSlug: 'partner-calls',
-        sourceType: 'partner-direct',
-        sourcePage: '/partner/support',
-        callerName: partnerInfo.name,
-        callerPhone: partnerInfo.phone,
-      });
-
-      if (!assignment) {
-        throw new Error('Çağrı kuyruğa eklenemedi');
-      }
-
-      console.log('📞 [PartnerCallSupport] Added to queue:', assignment.id);
-
-      // 2. Agent atandıysa WebRTC başlat
-      if (assignment.status === 'ringing' && assignment.assigned_agent_id) {
-        const callData = await callCenterService.getCallById(assignment.call_id!);
-        
-        if (callData?.receiver_id) {
-          console.log('✅ [PartnerCallSupport] Starting WebRTC call to agent:', callData.receiver_id);
-          
-          // WebRTC aramasını başlat
-          await startCall(callData.receiver_id, 'admin', assignment.call_id!, 'Yolmov Partner Destek');
-        } else {
-          throw new Error('Agent bilgisi alınamadı');
-        }
-      } else {
-        setError('Şu an tüm temsilcilerimiz meşgul. Lütfen kısa bir süre sonra tekrar deneyin.');
-      }
+      console.log('📞 [PartnerCallSupport] Starting support call...');
+      
+      // Yeni izole sistemle direkt destek çağrısı başlat
+      // callSupport otomatik olarak:
+      // 1. partner_support_calls tablosuna kaydeder
+      // 2. Kuyruk pozisyonu alır
+      // 3. Müsait agent bulur (varsa)
+      // 4. WebRTC bağlantısını kurar
+      await callSupport();
+      
+      console.log('✅ [PartnerCallSupport] Call initiated successfully');
 
     } catch (err: any) {
-      console.error('Partner call start error:', err);
-      if (err.message?.includes('NO_AVAILABLE_AGENT')) {
-        setError('Şu anda müsait temsilci bulunmuyor. Lütfen birkaç dakika sonra tekrar deneyin.');
-      } else {
-        setError('Bağlantı kurulamadı. Lütfen tekrar deneyin.');
-      }
+      console.error('❌ [PartnerCallSupport] Call start error:', err);
+      setError(err.message || 'Bağlantı kurulamadı. Lütfen tekrar deneyin.');
     } finally {
       setLoading(false);
     }
