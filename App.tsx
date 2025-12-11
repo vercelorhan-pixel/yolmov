@@ -30,6 +30,8 @@ const CampaignDetailPage = React.lazy(() => import('./components/CampaignDetailP
 const LoginPage = React.lazy(() => import('./components/LoginPage'));
 const AuthRequiredPage = React.lazy(() => import('./components/AuthRequiredPage'));
 const PartnerRegisterPage = React.lazy(() => import('./components/PartnerRegisterPage'));
+const PartnerRegisterPageV2 = React.lazy(() => import('./components/PartnerRegisterPageV2'));
+const PartnerRegistrationSuccess = React.lazy(() => import('./components/PartnerRegistrationSuccess'));
 const PartnerDashboard = React.lazy(() => import('./components/PartnerDashboard'));
 const CustomerProfilePage = React.lazy(() => import('./components/CustomerProfilePage'));
 const OffersPanel = React.lazy(() => import('./components/OffersPanel'));
@@ -172,7 +174,8 @@ function App() {
             <Route path="/giris-gerekli" element={<AuthRequiredPage />} />
             <Route path="/giris/musteri" element={<LoginPage userType="customer" />} />
             <Route path="/giris/partner" element={<LoginPage userType="partner" />} />
-            <Route path="/partner/kayit" element={<PartnerRegisterPage />} />
+            <Route path="/partner/kayit" element={<PartnerRegisterPageV2 />} />
+            <Route path="/partner-kayit-basarili" element={<PartnerRegistrationSuccess />} />
             <Route path="/email-dogrulama" element={<EmailConfirmationPage />} />
             
             {/* Partner Dashboard */}
