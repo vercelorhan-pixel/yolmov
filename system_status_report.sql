@@ -60,12 +60,12 @@ GROUP BY queue_id;
 -- 4️⃣ Partner kredi durumu (son kullanım)
 SELECT 
   p.id,
-  p.business_name,
+  COALESCE(p.company_name, p.name, p.first_name || ' ' || p.last_name, p.email) as partner_name,
   pc.balance,
   pc.total_used,
   pc.last_transaction
 FROM partners p
 LEFT JOIN partner_credits pc ON p.id = pc.partner_id
-WHERE pc.balance < 10
+WHERE pc.balance IS NOT NULL AND pc.balance < 10
 ORDER BY pc.balance ASC
 LIMIT 5;

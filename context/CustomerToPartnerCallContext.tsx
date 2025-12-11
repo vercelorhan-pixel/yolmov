@@ -406,17 +406,41 @@ export const CustomerPartnerCallProvider: React.FC<{ children: React.ReactNode }
 
     // Partner ID'yi kontrol et
     const checkPartner = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
+      // Önce localStorage'dan kontrol et (daha hızlı)
+      try {
+        const partnerData = localStorage.getItem('yolmov_partner');
+        if (partnerData) {
+          const parsed = JSON.parse(partnerData);
+          if (parsed.id) {
+            console.log('[CustomerToPartner] Partner ID from localStorage:', parsed.id);
+            return parsed.id;
+          }
+        }
+      } catch (e) {
+        console.log('[CustomerToPartner] localStorage parse error, checking database');
+      }
 
-      // Partner mı?
+      // localStorage'da yoksa veritabanından kontrol et
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('[CustomerToPartner] No auth user found');
+        return null;
+      }
+
+      // Partner tablosunda id = auth.uid() (user_id kolonu yok!)
       const { data: partner } = await supabase
         .from('partners')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .single();
 
-      return partner?.id || null;
+      if (partner?.id) {
+        console.log('[CustomerToPartner] Partner ID from database:', partner.id);
+        return partner.id;
+      }
+
+      console.log('[CustomerToPartner] User is not a partner');
+      return null;
     };
 
     let incomingChannel: any = null;

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, PhoneOff, Clock, User, Calendar, Star, TrendingUp, Coins, X, Filter, Search, PhoneCall, Trash2 } from 'lucide-react';
 import { supabase } from '../../services/supabaseApi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useCall } from '../../context/CallContext';
+import { useCustomerPartnerCall } from '../../context/CustomerToPartnerCallContext';
 
 interface Call {
   id: string;
@@ -37,8 +37,9 @@ const PartnerCallHistory: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'connected' | 'missed' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Call context for answering/rejecting
-  const { answerCall, answerCallById, rejectCall, rejectCallById, callStatus, isIncoming, currentCall } = useCall();
+  // Call context for answering/rejecting (yeni izole context)
+  const { answerCall, rejectCall, callStatus, currentCall, isInitiator } = useCustomerPartnerCall();
+  const isIncoming = !isInitiator && callStatus === 'ringing';
 
   // Get partner ID from localStorage
   const partnerData = JSON.parse(localStorage.getItem('yolmov_partner') || '{}');
@@ -52,7 +53,7 @@ const PartnerCallHistory: React.FC = () => {
       loadCalls();
       loadStats();
       
-      // Realtime subscription for partner's calls only (filtered by receiver_id)
+      // Realtime subscription for partner's calls only (YENİ TABLO: customer_partner_calls)
       const channel = supabase
         .channel(`partner_calls_${partnerId}`)
         .on(
@@ -60,8 +61,8 @@ const PartnerCallHistory: React.FC = () => {
           {
             event: '*', // INSERT, UPDATE, DELETE
             schema: 'public',
-            table: 'calls',
-            filter: `receiver_id=eq.${partnerId}` // Sadece bu partner'a gelen çağrıları dinle
+            table: 'customer_partner_calls',
+            filter: `partner_id=eq.${partnerId}` // Sadece bu partner'a gelen çağrıları dinle
           },
           (payload) => {
             console.log('📞 [PartnerCallHistory] Realtime update for partner:', partnerId, payload);
@@ -82,10 +83,11 @@ const PartnerCallHistory: React.FC = () => {
     try {
       setLoading(true);
       
+      // YENİ TABLO: customer_partner_calls kullanılıyor
       let query = supabase
-        .from('calls')
+        .from('customer_partner_calls')
         .select('*')
-        .eq('receiver_id', partnerId)
+        .eq('partner_id', partnerId)
         .order('started_at', { ascending: false })
         .limit(50);
 
@@ -114,10 +116,11 @@ const PartnerCallHistory: React.FC = () => {
 
   const loadStats = async () => {
     try {
+      // YENİ TABLO: customer_partner_calls kullanılıyor
       const { data, error } = await supabase
-        .from('calls')
+        .from('customer_partner_calls')
         .select('status, duration_seconds, quality_rating, credit_deducted')
-        .eq('receiver_id', partnerId);
+        .eq('partner_id', partnerId);
 
       if (error) {
         console.error('Error loading stats:', error);
@@ -275,11 +278,10 @@ const PartnerCallHistory: React.FC = () => {
             <div className="flex items-center gap-3">
               <button
                 onClick={async () => {
-                  if (currentCall) {
-                    answerCall();
-                  } else if (activeRingingCall) {
-                    // WebRTC ile cevapla
-                    await answerCallById(activeRingingCall.id);
+                  // Yeni context ile cevapla (currentCall.id kullan)
+                  const callId = currentCall?.id || activeRingingCall?.id;
+                  if (callId) {
+                    await answerCall(callId);
                     loadCalls();
                   }
                 }}
@@ -290,10 +292,10 @@ const PartnerCallHistory: React.FC = () => {
               </button>
               <button
                 onClick={async () => {
-                  if (currentCall) {
-                    rejectCall();
-                  } else if (activeRingingCall) {
-                    await rejectCallById(activeRingingCall.id);
+                  // Yeni context ile reddet (currentCall.id kullan)
+                  const callId = currentCall?.id || activeRingingCall?.id;
+                  if (callId) {
+                    await rejectCall(callId);
                     loadCalls();
                   }
                 }}

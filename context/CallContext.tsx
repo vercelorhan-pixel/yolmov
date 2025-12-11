@@ -215,6 +215,26 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // =====================================================
   
   useEffect(() => {
+    // ⚠️ KRITIK: CallContext artık SADECE ADMIN kullanıcılar için çalışacak!
+    // Partner ve Customer için yeni izole context'ler kullanılıyor:
+    // - CustomerToPartnerCallContext
+    // - CustomerToSupportCallContext  
+    // - PartnerToSupportCallContext
+    
+    const isAdminUser = (() => {
+      try {
+        const adminData = localStorage.getItem('yolmov_admin');
+        return !!adminData;
+      } catch {
+        return false;
+      }
+    })();
+    
+    if (!isAdminUser) {
+      console.log('📞 [CallContext] Skipping - only active for ADMIN users. Partners/Customers use isolated contexts.');
+      return;
+    }
+    
     // Kullanıcı bilgisini subscription kurulmadan önce al
     const currentUser = getCurrentUser();
     if (!currentUser?.id) {
@@ -222,7 +242,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
     
-    console.log('📞 [CallContext] Setting up realtime subscription for user:', currentUser.id, 'type:', currentUser.type);
+    console.log('📞 [CallContext] Setting up realtime subscription for ADMIN user:', currentUser.id, 'type:', currentUser.type);
     
     // Filtrelenmiş channel - SADECE bu kullanıcıya gelen aramaları dinle
     // NOT: Supabase Realtime filter birden fazla kolon desteklemiyor, 
