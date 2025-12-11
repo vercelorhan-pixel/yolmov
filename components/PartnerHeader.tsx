@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Briefcase } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 interface PartnerHeaderProps {
   showBackButton?: boolean;
@@ -24,14 +24,10 @@ const PartnerHeader: React.FC<PartnerHeaderProps> = ({ showBackButton = true }) 
           )}
         </div>
 
-        {/* Center: Logo + Badge */}
-        <Link to="/" className="flex items-center gap-3 absolute left-1/2 -translate-x-1/2">
+        {/* Center: Logo (Minimal) */}
+        <Link to="/" className="flex items-center absolute left-1/2 -translate-x-1/2">
           <span className="yolmov-logo text-2xl md:text-3xl font-bold text-brand-orange">
             yolmov
-          </span>
-          <span className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-brand-orange/10 to-orange-100/50 text-brand-orange border border-brand-orange/20 rounded-full text-xs font-bold uppercase tracking-wider">
-            <Briefcase size={14} />
-            Partner Kayıt
           </span>
         </Link>
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
    User, Briefcase, MapPin, Phone, Mail, Lock,
    CheckCircle2, ArrowRight, Truck, Wrench, 
-   BatteryCharging, Disc, ShieldCheck, Zap, TrendingUp, Loader, ArrowLeft
+   BatteryCharging, Disc, Loader, ArrowLeft
 } from 'lucide-react';
 import { CITIES_WITH_DISTRICTS } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,17 +13,10 @@ import { sendPartnerSubmissionEmail } from '../services/email';
 import PartnerHeader from './PartnerHeader';
 
 const SECTORS = [
-  { id: 'tow', label: 'Oto Çekici', icon: Truck, gradient: 'from-blue-500 to-cyan-500' },
-  { id: 'tire', label: 'Lastikçi', icon: Disc, gradient: 'from-purple-500 to-pink-500' },
-  { id: 'repair', label: 'Oto Tamir', icon: Wrench, gradient: 'from-orange-500 to-red-500' },
-  { id: 'battery', label: 'Akü Servisi', icon: BatteryCharging, gradient: 'from-green-500 to-emerald-500' },
-];
-
-const BENEFITS = [
-  { title: 'Yüksek Kazanç', desc: 'Boş dönüşlerinizi değerlendirin, gelirinizi artırın.', icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50' },
-  { title: 'Hızlı Ödeme', desc: 'Tamamlanan işlerin ödemesini her hafta hesabınıza alın.', icon: Zap, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-  { title: '7/24 Destek', desc: 'Operasyon ekibimiz her an yanınızda.', icon: Phone, color: 'text-blue-600', bg: 'bg-blue-50' },
-  { title: 'Güvenilir Ağ', desc: 'Kurumsal ve doğrulanmış müşteri portföyü.', icon: ShieldCheck, color: 'text-purple-600', bg: 'bg-purple-50' },
+  { id: 'tow', label: 'Oto Çekici', icon: Truck },
+  { id: 'tire', label: 'Lastikçi', icon: Disc },
+  { id: 'repair', label: 'Oto Tamir', icon: Wrench },
+  { id: 'battery', label: 'Akü Servisi', icon: BatteryCharging },
 ];
 
 type Step = 'sector' | 'personal' | 'location' | 'submitting';
@@ -36,7 +29,7 @@ const PartnerRegisterPageV2: React.FC = () => {
     firstName: '',
     lastName: '',
     companyName: '',
-    sector: '',
+    sectors: [] as string[], // Çoklu seçim için array
     city: '',
     district: '',
     phone: '',
@@ -55,11 +48,26 @@ const PartnerRegisterPageV2: React.FC = () => {
     }
   };
 
+  const toggleSector = (sectorId: string) => {
+    setFormData(prev => {
+      const isSelected = prev.sectors.includes(sectorId);
+      return {
+        ...prev,
+        sectors: isSelected
+          ? prev.sectors.filter(s => s !== sectorId)
+          : [...prev.sectors, sectorId]
+      };
+    });
+    if (formErrors.sectors) {
+      setFormErrors(prev => ({ ...prev, sectors: '' }));
+    }
+  };
+
   const validateStep = (step: Step): boolean => {
     const errors: Record<string, string> = {};
 
     if (step === 'sector') {
-      if (!formData.sector) errors.sector = 'Hizmet alanı seçiniz';
+      if (formData.sectors.length === 0) errors.sectors = 'En az bir hizmet seçiniz';
     } else if (step === 'personal') {
       if (!formData.firstName.trim()) errors.firstName = 'Ad gereklidir';
       if (!formData.lastName.trim()) errors.lastName = 'Soyad gereklidir';
@@ -110,14 +118,14 @@ const PartnerRegisterPageV2: React.FC = () => {
     }
   };
 
-  const mapSectorToServiceTypes = (sector: string): string[] => {
-    const mapping: Record<string, string[]> = {
-      'tow': ['cekici'],
-      'tire': ['lastik'],
-      'repair': ['tamir'],
-      'battery': ['aku'],
+  const mapSectorsToServiceTypes = (sectors: string[]): string[] => {
+    const mapping: Record<string, string> = {
+      'tow': 'cekici',
+      'tire': 'lastik',
+      'repair': 'tamir',
+      'battery': 'aku',
     };
-    return mapping[sector] || ['cekici'];
+    return sectors.map(s => mapping[s]).filter(Boolean);
   };
 
   const handleSubmit = async () => {
@@ -138,12 +146,12 @@ const PartnerRegisterPageV2: React.FC = () => {
           first_name: formData.firstName.trim(),
           last_name: formData.lastName.trim(),
           company_name: formData.companyName.trim() || `${formData.firstName} ${formData.lastName}`.trim(),
-          sector: formData.sector,
+          sector: formData.sectors[0] || 'tow', // İlk seçimi ana sektör olarak kullan
           city: formData.city,
           district: formData.district,
           phone: formData.phone.replace(/\s/g, ''),
           email: emailForAuth.toLowerCase(),
-          service_types: mapSectorToServiceTypes(formData.sector),
+          service_types: mapSectorsToServiceTypes(formData.sectors),
         }
       );
 
@@ -174,7 +182,7 @@ const PartnerRegisterPageV2: React.FC = () => {
             firstName: formData.firstName.trim(),
             lastName: formData.lastName.trim(),
             companyName: formData.companyName.trim() || `${formData.firstName} ${formData.lastName}`,
-            sector: formData.sector,
+            sector: formData.sectors.join(', '),
             city: formData.city,
             district: formData.district,
             phone: formData.phone.replace(/\s/g, ''),
@@ -223,64 +231,58 @@ const PartnerRegisterPageV2: React.FC = () => {
       {/* Partner Header */}
       <PartnerHeader showBackButton={currentStep === 'sector'} />
 
-      {/* Hero Section - Compact & Modern */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1615906655593-ad0386982a0f?q=80&w=2000')] bg-cover bg-center opacity-10" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/80 to-slate-900" />
-        
-        <div className="container mx-auto px-6 py-16 relative z-10">
+      {/* Hero Section - Minimal & Clean (OpenAI/Apple Style) */}
+      <div className="bg-gradient-to-br from-slate-50 via-white to-slate-50 border-b border-slate-100">
+        <div className="container mx-auto px-6 py-8 relative z-10">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="max-w-3xl mx-auto text-center"
+            className="max-w-2xl mx-auto text-center"
           >
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              Partner Ol,
-              <br />
-              <span className="bg-gradient-to-r from-brand-orange to-orange-400 bg-clip-text text-transparent">
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">
+              Partner Ol, 
+              <span className="text-brand-orange">
                 Kazanmaya Başla
               </span>
             </h1>
-            <p className="text-slate-300 text-lg md:text-xl">
-              3 adımda kayıt ol, admin onayından sonra hemen iş almaya başla.
-              <br />
-              <strong className="text-white">Komisyon yok, aidat yok</strong> — sadece kazanç var.
+            <p className="text-slate-600 text-base md:text-lg">
+              3 adımda ücretsiz kayıt ol, onay sonrası hemen iş almaya başla.
             </p>
           </motion.div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-12 md:py-20">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-3 gap-8 lg:gap-12">
+      {/* Main Content - Centered Form */}
+      <div className="container mx-auto px-4 py-8 md:py-12">
+        <div className="max-w-3xl mx-auto">
+          <div>
             
-            {/* LEFT: Form Card */}
-            <div className="lg:col-span-2">
+            {/* Form Card */}
+            <div>
               <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
                 
-                {/* Progress Bar */}
-                <div className="bg-slate-50 px-8 py-6 border-b border-slate-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-semibold text-slate-600">
+                {/* Progress Bar - Minimal */}
+                <div className="bg-white px-6 py-4 border-b border-slate-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-slate-500">
                       Adım {getStepNumber()} / 3
                     </span>
-                    <span className="text-sm font-semibold text-brand-orange">
+                    <span className="text-xs font-medium text-brand-orange">
                       {getProgressPercentage()}%
                     </span>
                   </div>
-                  <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${getProgressPercentage()}%` }}
-                      transition={{ duration: 0.5, ease: 'easeOut' }}
-                      className="h-full bg-gradient-to-r from-brand-orange to-orange-400"
+                      transition={{ duration: 0.4, ease: 'easeOut' }}
+                      className="h-full bg-brand-orange"
                     />
                   </div>
                 </div>
 
                 {/* Form Content */}
-                <div className="p-8 md:p-12">
+                <div className="p-6 md:p-8">
                   <AnimatePresence mode="wait">
                     
                     {/* STEP 1: Sector Selection */}
@@ -291,47 +293,49 @@ const PartnerRegisterPageV2: React.FC = () => {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
                         transition={{ duration: 0.3 }}
-                        className="space-y-8"
+                        className="space-y-6"
                       >
                         <div>
-                          <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
+                          <h2 className="text-xl md:text-2xl font-bold text-slate-900 mb-1.5">
                             Hangi hizmeti veriyorsunuz?
                           </h2>
-                          <p className="text-slate-600">
-                            Size uygun hizmet alanını seçin
+                          <p className="text-sm text-slate-500">
+                            Birden fazla seçim yapabilirsiniz
                           </p>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-3">
                           {SECTORS.map((sec) => (
                             <motion.div
                               key={sec.id}
                               whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}
-                              onClick={() => handleInputChange('sector', sec.id)}
-                              className={`cursor-pointer relative overflow-hidden rounded-2xl border-2 transition-all duration-300 ${
-                                formData.sector === sec.id
-                                  ? 'border-brand-orange shadow-lg shadow-orange-200/50'
-                                  : 'border-slate-200 hover:border-slate-300 hover:shadow-md'
+                              onClick={() => toggleSector(sec.id)}
+                              className={`cursor-pointer relative overflow-hidden rounded-xl border-2 transition-all duration-200 ${
+                                formData.sectors.includes(sec.id)
+                                  ? 'border-brand-orange bg-orange-50/50'
+                                  : 'border-slate-200 hover:border-slate-300 bg-white'
                               }`}
                             >
-                              <div className="p-6 space-y-4">
-                                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${sec.gradient} flex items-center justify-center shadow-lg`}>
-                                  <sec.icon size={28} className="text-white" strokeWidth={2} />
+                              <div className="p-4 flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                  formData.sectors.includes(sec.id) 
+                                    ? 'bg-brand-orange text-white' 
+                                    : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                  <sec.icon size={20} strokeWidth={2} />
                                 </div>
-                                <h3 className="font-bold text-slate-900">{sec.label}</h3>
+                                <h3 className="font-semibold text-slate-900 text-sm">{sec.label}</h3>
+                                {formData.sectors.includes(sec.id) && (
+                                  <CheckCircle2 size={18} className="text-brand-orange ml-auto" />
+                                )}
                               </div>
-                              {formData.sector === sec.id && (
-                                <div className="absolute top-3 right-3">
-                                  <CheckCircle2 size={24} className="text-brand-orange" />
-                                </div>
-                              )}
                             </motion.div>
                           ))}
                         </div>
                         
-                        {formErrors.sector && (
-                          <p className="text-red-500 text-sm font-medium">{formErrors.sector}</p>
+                        {formErrors.sectors && (
+                          <p className="text-red-500 text-sm font-medium">{formErrors.sectors}</p>
                         )}
                       </motion.div>
                     )}
@@ -347,10 +351,10 @@ const PartnerRegisterPageV2: React.FC = () => {
                         className="space-y-8"
                       >
                         <div>
-                          <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
+                          <h2 className="text-xl md:text-2xl font-bold text-slate-900 mb-1.5">
                             Sizi tanıyalım
                           </h2>
-                          <p className="text-slate-600">
+                          <p className="text-sm text-slate-500">
                             Kişisel bilgilerinizi girin
                           </p>
                         </div>
@@ -483,10 +487,10 @@ const PartnerRegisterPageV2: React.FC = () => {
                         className="space-y-8"
                       >
                         <div>
-                          <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
+                          <h2 className="text-xl md:text-2xl font-bold text-slate-900 mb-1.5">
                             Nerede hizmet veriyorsunuz?
                           </h2>
-                          <p className="text-slate-600">
+                          <p className="text-sm text-slate-500">
                             Hizmet vereceğiniz bölgeyi belirleyin
                           </p>
                         </div>
@@ -603,36 +607,11 @@ const PartnerRegisterPageV2: React.FC = () => {
               </div>
             </div>
 
-            {/* RIGHT: Benefits Sidebar */}
-            <div className="lg:col-span-1">
-              <div className="sticky top-24 space-y-6">
-                <h3 className="text-lg font-bold text-slate-900">Neden Yolmov?</h3>
-                
-                {BENEFITS.map((benefit, idx) => (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-shadow border border-slate-100"
-                  >
-                    <div className={`w-12 h-12 rounded-xl ${benefit.bg} flex items-center justify-center mb-4`}>
-                      <benefit.icon size={24} className={benefit.color} strokeWidth={2} />
-                    </div>
-                    <h4 className="font-bold text-slate-900 mb-2">{benefit.title}</h4>
-                    <p className="text-sm text-slate-600 leading-relaxed">{benefit.desc}</p>
-                  </motion.div>
-                ))}
-
-                {/* Trust Badge */}
-                <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 text-center relative overflow-hidden">
-                  <div className="relative z-10">
-                    <p className="text-slate-400 text-xs uppercase font-bold mb-2">Güvenli Platform</p>
-                    <p className="text-white font-bold text-lg">1000+ Aktif Partner</p>
-                  </div>
-                  <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-brand-orange/20 rounded-full blur-2xl" />
-                </div>
-              </div>
+            {/* Trust Badge - Footer */}
+            <div className="mt-8 text-center">
+              <p className="text-sm text-slate-500">
+                <span className="font-semibold text-slate-700">1000+ Aktif Partner</span> — Güvenilir platform
+              </p>
             </div>
 
           </div>
