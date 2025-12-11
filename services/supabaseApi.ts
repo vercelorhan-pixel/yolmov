@@ -246,21 +246,24 @@ export const authApi = {
   },
 
   /**
-   * Partner kaydı - Email doğrulama ile, partners tablosuna insert
+   * Partner kaydı - EMAIL CONFIRMATION KALDIRILDI
+   * Admin onayı bekleyen partner kaydı oluşturur
    */
   signUpPartner: async (email: string, password: string, partnerData: Partial<Partner>) => {
     try {
       if (!email || !password) throw new Error('Email ve şifre gereklidir');
+      
+      // ⚠️ NOT: Supabase signUp() her zaman confirmation email gönderir
+      // Çözüm: Supabase Dashboard > Authentication > Email Auth > "Enable email confirmations" KAPALI olmalı
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          // ✅ EMAIL DOĞRULAMA KALDIRILDI - Otomatik onaylı kullanıcı
+          emailRedirectTo: undefined,  // Email redirect URL'i kaldır
           data: { 
             user_type: 'partner', 
             first_name: partnerData.first_name, 
-            last_name: partnerData.last_name,
-            email_confirmed: true  // Auto-confirm
+            last_name: partnerData.last_name
           }
         }
       });
@@ -306,12 +309,25 @@ export const authApi = {
 
   /**
    * Partner giriş - email+şifre, status kontrolü
+   * EMAIL CONFIRMATION hatası özel mesajla yakalanır
    */
   signInPartner: async (email: string, password: string) => {
     try {
       if (!email || !password) throw new Error('Email ve şifre gereklidir');
       const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      
+      // Email confirmation hatası kontrolü
+      if (error) {
+        if (error.message?.includes('Email not confirmed')) {
+          throw new Error(
+            '⚠️ Email doğrulaması gerekiyor. Ancak bu sistem admin onayı ile çalışır.\n\n' +
+            '✅ Çözüm: Admin onayınızı bekleyin. Onay sonrası giriş yapabilirsiniz.\n\n' +
+            '📞 Acil durum: Destek ekibimizle iletişime geçin.'
+          );
+        }
+        throw error;
+      }
+      
       const userId = authData.user?.id;
       if (!userId) throw new Error('Kullanıcı bulunamadı');
       const { data: partner, error: pErr } = await supabase
