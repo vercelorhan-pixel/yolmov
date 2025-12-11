@@ -8,7 +8,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Phone, PhoneCall, PhoneOff, Loader2 } from 'lucide-react';
-import { useCall, CallStatus } from '../../context/CallContext';
+import { useCustomerPartnerCall } from '../../context/CustomerToPartnerCallContext';
 
 interface CallPartnerButtonProps {
   partnerId: string;
@@ -25,10 +25,10 @@ const CallPartnerButton: React.FC<CallPartnerButtonProps> = ({
   size = 'md',
   className = '',
 }) => {
-  const { callStatus, startCall, endCall, currentCall } = useCall();
+  const { callStatus, startCall, endCall, currentCall } = useCustomerPartnerCall();
 
   // Bu partner için aktif arama var mı?
-  const isCallingThisPartner = currentCall?.receiverId === partnerId;
+  const isCallingThisPartner = currentCall?.partner_id === partnerId;
   const isInActiveCall = callStatus === 'connected' || callStatus === 'calling';
 
   // Butona tıklama
@@ -38,7 +38,7 @@ const CallPartnerButton: React.FC<CallPartnerButtonProps> = ({
       endCall();
     } else if (!isInActiveCall) {
       // Yeni arama başlat
-      startCall(partnerId, 'partner');
+      startCall(partnerId);
     }
   };
 

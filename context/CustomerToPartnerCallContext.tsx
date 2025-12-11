@@ -385,6 +385,73 @@ export const CustomerPartnerCallProvider: React.FC<{ children: React.ReactNode }
   }, [localStream, remoteStream]);
 
   // ============================================
+  // PARTNER IÇIN GELEN ARAMA DİNLEME
+  // ============================================
+
+  useEffect(() => {
+    // Partner ID'yi kontrol et
+    const checkPartner = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      // Partner mı?
+      const { data: partner } = await supabase
+        .from('partners')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      return partner?.id || null;
+    };
+
+    let incomingChannel: any = null;
+
+    const setupIncomingCallListener = async () => {
+      const partnerId = await checkPartner();
+      if (!partnerId) return;
+
+      console.log('[CustomerToPartner] Partner gelen arama dinleniyor:', partnerId);
+
+      // Partner'a gelen yeni aramaları dinle
+      incomingChannel = supabase
+        .channel(`partner_incoming_calls:${partnerId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'customer_partner_calls',
+            filter: `partner_id=eq.${partnerId}`
+          },
+          (payload: any) => {
+            const newCall = payload.new as CustomerPartnerService.CustomerPartnerCall;
+            
+            console.log('[CustomerToPartner] 🔔 GELEN ARAMA!', newCall);
+
+            // Sadece ringing durumundaki aramaları al
+            if (newCall.status === 'ringing') {
+              setCurrentCall(newCall);
+              setCallStatus('ringing');
+              setIsInitiator(false);
+
+              // Bu aramayı dinlemeye başla
+              subscribeToCallUpdates(newCall.id);
+            }
+          }
+        )
+        .subscribe();
+    };
+
+    setupIncomingCallListener();
+
+    return () => {
+      if (incomingChannel) {
+        supabase.removeChannel(incomingChannel);
+      }
+    };
+  }, []);
+
+  // ============================================
   // CLEANUP ON UNMOUNT
   // ============================================
 

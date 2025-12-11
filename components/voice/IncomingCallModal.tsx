@@ -12,7 +12,7 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, PhoneOff, User, MapPin, Truck, Coins } from 'lucide-react';
-import { useCall } from '../../context/CallContext';
+import { useCustomerPartnerCall } from '../../context/CustomerToPartnerCallContext';
 
 // Fullscreen API helper
 const enterFullscreen = async () => {
@@ -45,10 +45,13 @@ const exitFullscreen = async () => {
 };
 
 const IncomingCallModal: React.FC = () => {
-  const { isIncoming, callStatus, callerInfo, answerCall, rejectCall, error } = useCall();
+  const { currentCall, callStatus, answerCall, rejectCall, isInitiator } = useCustomerPartnerCall();
+
+  // Gelen arama: Partner tarafında (isInitiator = false) ve ringing durumunda
+  const isIncoming = !isInitiator && callStatus === 'ringing';
 
   // Debug log
-  console.log('📞 [IncomingCallModal] isIncoming:', isIncoming, 'callStatus:', callStatus, 'callerInfo:', callerInfo);
+  console.log('📞 [IncomingCallModal] isIncoming:', isIncoming, 'callStatus:', callStatus, 'call:', currentCall);
 
   // Admin kullanıcıları için bu modal'ı gösterme - adminler toast notification alacak
   const isAdminUser = (() => {
@@ -74,19 +77,19 @@ const IncomingCallModal: React.FC = () => {
   }
 
   // Sadece gelen arama durumunda göster
-  if (!isIncoming || callStatus !== 'ringing') return null;
+  if (!isIncoming || callStatus !== 'ringing' || !currentCall) return null;
 
-  const callerName = callerInfo?.name || callerInfo?.company_name || 'Müşteri';
-  const callerPhone = callerInfo?.phone || '';
+  const callerName = 'Müşteri'; // Anonim olabilir
+  const callerPhone = currentCall.customer_id.startsWith('anon_') ? '' : currentCall.customer_id;
 
   const handleReject = async () => {
     await exitFullscreen();
-    rejectCall();
+    rejectCall(currentCall.id);
   };
 
   const handleAnswer = async () => {
     // Cevaplama sonrasında fullscreen kalır (ActiveCallUI devam eder)
-    answerCall();
+    answerCall(currentCall.id);
   };
 
   return (

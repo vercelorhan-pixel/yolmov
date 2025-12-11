@@ -7,10 +7,10 @@
  * Fullscreen API kullanılarak gerçek tam ekran modu aktif edilir.
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX, User, Clock, X, Minimize2 } from 'lucide-react';
-import { useCall } from '../../context/CallContext';
+import { useCustomerPartnerCall } from '../../context/CustomerToPartnerCallContext';
 
 // Fullscreen API helper
 const exitFullscreen = async () => {
@@ -37,15 +37,44 @@ const ActiveCallUI: React.FC<ActiveCallUIProps> = ({ minimized = false, onMinimi
   const { 
     callStatus, 
     currentCall, 
-    callerInfo,
-    isIncoming,
+    isInitiator,
     endCall, 
-    isMuted, 
-    toggleMute, 
-    isSpeakerOn, 
-    toggleSpeaker,
-    callDuration 
-  } = useCall();
+    localStream
+  } = useCustomerPartnerCall();
+
+  // Süre sayacı
+  const [callDuration, setCallDuration] = useState(0);
+  
+  // Ses kontrolleri
+  const [isMuted, setIsMuted] = useState(false);
+  const [isSpeakerOn, setIsSpeakerOn] = useState(true);
+
+  // Bağlandığında süreyi başlat
+  useEffect(() => {
+    if (callStatus === 'connected') {
+      const interval = setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+
+      return () => clearInterval(interval);
+    } else {
+      setCallDuration(0);
+    }
+  }, [callStatus]);
+
+  const toggleMute = () => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach(track => {
+        track.enabled = isMuted; // Toggle
+      });
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const toggleSpeaker = () => {
+    setIsSpeakerOn(!isSpeakerOn);
+    // Speaker gerçek implementasyonu gerekirse eklenebilir
+  };
 
   // Admin kullanıcısı kontrolü
   const isAdminUser = (() => {
@@ -65,7 +94,7 @@ const ActiveCallUI: React.FC<ActiveCallUIProps> = ({ minimized = false, onMinimi
   }, [callStatus]);
 
   // Sadece bağlı durumda göster
-  if (callStatus !== 'connected') return null;
+  if (callStatus !== 'connected' || !currentCall) return null;
   
   // Admin için bu UI'ı gösterme - AdminCallCenterTab kendi UI'ını kullanır
   if (isAdminUser) {
@@ -87,11 +116,9 @@ const ActiveCallUI: React.FC<ActiveCallUIProps> = ({ minimized = false, onMinimi
   };
 
   // Karşı tarafın bilgisi - giden/gelen aramaya göre farklı göster
-  // Giden arama (biz aradık): receiverName göster
-  // Gelen arama (bizi aradılar): callerInfo göster
-  const otherPartyName = isIncoming
-    ? (callerInfo?.name || callerInfo?.company_name || currentCall?.callerName || 'Arayan')
-    : (currentCall?.receiverName || (currentCall?.receiverType === 'admin' ? 'Yolmov Destek' : 'Partner'));
+  const otherPartyName = isInitiator 
+    ? 'Partner' // Müşteri partneri arıyor
+    : 'Müşteri'; // Partner müşteriyi görüyor
 
   // Partner mı kontrol et
   const isPartnerUser = (() => {
@@ -103,8 +130,7 @@ const ActiveCallUI: React.FC<ActiveCallUIProps> = ({ minimized = false, onMinimi
     }
   })();
   
-  // Admin'e mi arıyoruz?
-  const isCallingAdmin = currentCall?.receiverType === 'admin';
+  const isCallingAdmin = false; // Müşteri-partner arası, admin yok
   
   // Tema renkleri - partner->admin mor, diğerleri yeşil
   const themeColors = (isPartnerUser && isCallingAdmin) ? {
