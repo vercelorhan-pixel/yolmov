@@ -60,25 +60,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const url = process.env.SUPABASE_URL || 
                 process.env.VITE_SUPABASE_URL || 
                 'https://uwslxmciglqxpvfbgjzm.supabase.co';
-    
-    // Service Role Key - kritik güvenlik anahtarı
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    // Mevcut SUPABASE env key'lerini listele (debug için)
+    const supabaseEnvKeys = Object.keys(process.env).filter((k) =>
+      k.toUpperCase().includes('SUPABASE')
+    );
+
+    // Service Role Key - birden fazla isim dene (konfigürasyon esnekliği)
+    const serviceKeyCandidates = [
+      'SUPABASE_SERVICE_ROLE_KEY',
+      'SUPABASE_SERVICE_ROLE',
+      'SUPABASE_SERVICE_KEY',
+      'SUPABASE_SECRET_KEY'
+    ];
+
+    const serviceKey = serviceKeyCandidates
+      .map((name) => process.env[name])
+      .find((val) => typeof val === 'string' && val.length > 0);
 
     // Detaylı error logging
     if (!url) {
-      console.error('❌ SUPABASE_URL missing. Available env vars:', Object.keys(process.env).filter(k => k.includes('SUPABASE')));
+      console.error('❌ SUPABASE_URL missing. Available env vars:', supabaseEnvKeys);
       return res.status(500).json({ 
         error: 'Server configuration error',
-        details: 'SUPABASE_URL not configured'
+        details: `SUPABASE_URL not configured. Available SUPABASE env keys: ${supabaseEnvKeys.join(', ')}`
       });
     }
 
     if (!serviceKey) {
-      console.error('❌ SUPABASE_SERVICE_ROLE_KEY missing. Available env vars:', Object.keys(process.env).filter(k => k.includes('SUPABASE')));
-      console.error('⚠️ This key must be added to Vercel Dashboard > Settings > Environment Variables');
+      console.error('❌ Supabase service role key missing. Available SUPABASE env vars:', supabaseEnvKeys);
+      console.error('⚠️ Tried env names:', serviceKeyCandidates);
       return res.status(500).json({ 
         error: 'Server configuration error',
-        details: 'SUPABASE_SERVICE_ROLE_KEY not configured in Vercel. Please add it in Dashboard > Settings > Environment Variables'
+        details: `Supabase service role key not configured. Tried: ${serviceKeyCandidates.join(', ')}. Available SUPABASE env keys: ${supabaseEnvKeys.join(', ')}`
       });
     }
 
