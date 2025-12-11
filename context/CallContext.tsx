@@ -337,23 +337,28 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // SDP Answer geldi - bağlantıyı tamamla
           if (updatedCall.sdp_answer && peerRef.current) {
             console.log('📞 [CallContext] Got SDP answer, signaling peer...');
+            console.log('📞 [CallContext] Peer state - destroyed:', peerRef.current.destroyed, 'connected:', peerRef.current.connected);
             try {
-              // Peer zaten connected mı kontrol et
-              if (!peerRef.current.destroyed && !peerRef.current.connected) {
+              // Peer destroyed olmamalı - connected kontrolü GEREKSIZ (henüz signal edilmedi!)
+              if (!peerRef.current.destroyed) {
+                console.log('📞 [CallContext] 🔥 Signaling SDP answer to peer NOW...');
                 peerRef.current.signal(updatedCall.sdp_answer);
-                console.log('📞 [CallContext] ✅ SDP answer signaled to peer!');
+                console.log('📞 [CallContext] ✅ SDP answer signaled successfully!');
                 
                 // Polling'i durdur
                 if (sdpPollingRef.current) {
                   clearInterval(sdpPollingRef.current);
                   sdpPollingRef.current = null;
+                  console.log('📞 [CallContext] Polling stopped');
                 }
               } else {
-                console.log('📞 [CallContext] Peer already connected or destroyed, skipping signal');
+                console.error('📞 [CallContext] ❌ Peer already destroyed, cannot signal!');
               }
             } catch (err) {
               console.error('📞 [CallContext] ❌ Error signaling peer:', err);
             }
+          } else {
+            console.warn('📞 [CallContext] ⚠️ Cannot signal - answer:', !!updatedCall.sdp_answer, 'peer:', !!peerRef.current);
           }
         }
       )
@@ -377,9 +382,10 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
         
-        if (data?.sdp_answer && peerRef.current && !peerRef.current.destroyed && !peerRef.current.connected) {
+        if (data?.sdp_answer && peerRef.current && !peerRef.current.destroyed) {
           console.log('📞 [CallContext] 🔄 Polling found SDP answer, signaling peer...');
           peerRef.current.signal(data.sdp_answer);
+          console.log('📞 [CallContext] ✅ SDP answer signaled via polling!');
           
           // Polling'i durdur
           if (sdpPollingRef.current) {
@@ -653,10 +659,13 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // receiverName yoksa, receiverType'a göre varsayılan isim belirle
     const displayName = receiverName || (receiverType === 'admin' ? 'Yolmov Destek' : receiverType === 'partner' ? 'Partner' : 'Müşteri');
     
-    // Eğer mevcut call ID varsa, ref'i set et
+    // 🔧 CRITICAL FIX: Eğer mevcut call ID varsa, HER ŞEYDEN ÖNCE ref'i set et!
+    // Bu olmadan signal event'i geldiğinde yeni kayıt oluşturulur ve çift call olur
     if (existingCallId) {
       callIdRef.current = existingCallId;
-      console.log('📞 [CallContext] Using existing call ID:', existingCallId);
+      console.log('📞 [CallContext] ✅ Using EXISTING call ID (queue):', existingCallId);
+    } else {
+      console.log('📞 [CallContext] No existing call ID - will create NEW record');
     }
     
     try {
@@ -676,7 +685,7 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         startedAt: new Date().toISOString(),
       });
       
-      console.log('📞 [CallContext] Starting call to:', receiverId, 'displayName:', displayName);
+      console.log('📞 [CallContext] Starting call to:', receiverId, 'type:', receiverType, 'displayName:', displayName);
       
       // 2. Mikrofon izni al
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -964,50 +973,17 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleCallEnded('peer_closed');
       });
       
-      // 9. SDP Answer'ı dinle (Partner cevapladığında DB'ye yazılan answer'ı al)
-      // Bu olmadan WebRTC connection tamamlanamaz!
-      const answerSubscription = supabase
-        .channel(`call-answer-${callIdRef.current}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'calls',
-            filter: `id=eq.${callIdRef.current}`,
-          },
-          async (payload: any) => {
-            console.log('📞 [CallContext] Call updated:', payload);
-            
-            // Partner cevapladığında sdp_answer gelir
-            if (payload.new.sdp_answer && !peer.destroyed) {
-              console.log('📞 [CallContext] Got SDP answer from partner, signaling peer...');
-              try {
-                peer.signal(payload.new.sdp_answer);
-                console.log('✅ [CallContext] SDP answer signaled successfully');
-              } catch (signalError) {
-                console.error('❌ [CallContext] Failed to signal SDP answer:', signalError);
-              }
-            }
-            
-            // Partner reddettiğinde
-            if (payload.new.status === 'rejected') {
-              console.log('📞 [CallContext] Call rejected by partner');
-              stopWaitingTone();
-              setError('Arama reddedildi');
-              handleCallEnded('rejected');
-            }
-          }
-        )
-        .subscribe();
+      // 9. SDP Answer dinleme - REMOVED (duplikasyon)
+      // useEffect içinde zaten SDP answer subscription var (callStatus === 'calling' ile aktif)
+      // Bu kod gereksiz subscription yaratıyor ve kaldırıldı.
+      // useEffect subscription hem realtime hem polling ile SDP answer'ı yakalıyor.
       
-      console.log('📞 [CallContext] Subscribed to SDP answer updates');
+      console.log('📞 [CallContext] ✅ Peer setup complete - SDP answer via useEffect subscription');
       
       // 10. 30 saniye cevapsız timeout
       setTimeout(() => {
         if (callStatus === 'calling' && callIdRef.current) {
           console.log('📞 [CallContext] Call timeout - no answer');
-          answerSubscription.unsubscribe();
           supabase
             .from('calls')
             .update({ status: 'missed', ended_at: new Date().toISOString() })
