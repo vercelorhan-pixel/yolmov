@@ -56,14 +56,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Telefon numarası gereklidir' });
     }
 
-    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    // Supabase URL - birden fazla environment variable kontrolü yap
+    const url = process.env.SUPABASE_URL || 
+                process.env.VITE_SUPABASE_URL || 
+                'https://uwslxmciglqxpvfbgjzm.supabase.co';
+    
+    // Service Role Key - kritik güvenlik anahtarı
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!url || !serviceKey) {
-      console.error('❌ Missing Supabase configuration');
+    // Detaylı error logging
+    if (!url) {
+      console.error('❌ SUPABASE_URL missing. Available env vars:', Object.keys(process.env).filter(k => k.includes('SUPABASE')));
       return res.status(500).json({ 
         error: 'Server configuration error',
-        details: 'Supabase credentials not configured'
+        details: 'SUPABASE_URL not configured'
+      });
+    }
+
+    if (!serviceKey) {
+      console.error('❌ SUPABASE_SERVICE_ROLE_KEY missing. Available env vars:', Object.keys(process.env).filter(k => k.includes('SUPABASE')));
+      console.error('⚠️ This key must be added to Vercel Dashboard > Settings > Environment Variables');
+      return res.status(500).json({ 
+        error: 'Server configuration error',
+        details: 'SUPABASE_SERVICE_ROLE_KEY not configured in Vercel. Please add it in Dashboard > Settings > Environment Variables'
       });
     }
 
