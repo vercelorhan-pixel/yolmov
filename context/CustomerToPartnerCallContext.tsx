@@ -389,6 +389,21 @@ export const CustomerPartnerCallProvider: React.FC<{ children: React.ReactNode }
   // ============================================
 
   useEffect(() => {
+    // SADECE PARTNER KULLANICILARI İÇİN AKTIF
+    const isPartnerUser = (() => {
+      try {
+        const partnerData = localStorage.getItem('yolmov_partner');
+        return !!partnerData;
+      } catch {
+        return false;
+      }
+    })();
+
+    if (!isPartnerUser) {
+      console.log('[CustomerToPartner] Customer user detected, skipping incoming call listener');
+      return;
+    }
+
     // Partner ID'yi kontrol et
     const checkPartner = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -408,9 +423,12 @@ export const CustomerPartnerCallProvider: React.FC<{ children: React.ReactNode }
 
     const setupIncomingCallListener = async () => {
       const partnerId = await checkPartner();
-      if (!partnerId) return;
+      if (!partnerId) {
+        console.log('[CustomerToPartner] Partner ID bulunamadı');
+        return;
+      }
 
-      console.log('[CustomerToPartner] Partner gelen arama dinleniyor:', partnerId);
+      console.log('[CustomerToPartner] ✅ Partner gelen arama dinleniyor:', partnerId);
 
       // Partner'a gelen yeni aramaları dinle
       incomingChannel = supabase
@@ -439,7 +457,9 @@ export const CustomerPartnerCallProvider: React.FC<{ children: React.ReactNode }
             }
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('[CustomerToPartner] Partner subscription status:', status);
+        });
     };
 
     setupIncomingCallListener();
@@ -447,6 +467,7 @@ export const CustomerPartnerCallProvider: React.FC<{ children: React.ReactNode }
     return () => {
       if (incomingChannel) {
         supabase.removeChannel(incomingChannel);
+        console.log('[CustomerToPartner] Partner incoming call listener removed');
       }
     };
   }, []);

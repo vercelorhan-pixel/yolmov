@@ -10,7 +10,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, PhoneOff, User, X, Loader2 } from 'lucide-react';
-import { useCall } from '../../context/CallContext';
+import { useCustomerPartnerCall } from '../../context/CustomerToPartnerCallContext';
 
 // Fullscreen API helper
 const enterFullscreen = async (element: HTMLElement | null) => {
@@ -43,33 +43,29 @@ const exitFullscreen = async () => {
 };
 
 const OutgoingCallUI: React.FC = () => {
-  const { callStatus, currentCall, endCall, error, isIncoming } = useCall();
+  const { callStatus, currentCall, endCall, error, isInitiator } = useCustomerPartnerCall();
   const [dots, setDots] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // Partner mı kontrol et (mor tema için)
-  const isPartnerUser = (() => {
+  // Müşteri mi kontrol et
+  const isCustomerUser = (() => {
     try {
+      const customerData = localStorage.getItem('yolmov_customer');
       const partnerData = localStorage.getItem('yolmov_partner');
-      return !!partnerData;
+      const adminData = localStorage.getItem('yolmov_admin');
+      
+      // Sadece customer (partner veya admin değil)
+      return !!customerData && !partnerData && !adminData;
     } catch {
       return false;
     }
   })();
   
-  // Admin'e mi arıyoruz?
-  const isCallingAdmin = currentCall?.receiverType === 'admin';
+  // Giden arama: SADECE MÜŞTERİ + isInitiator = true + ringing/calling durumu
+  const isOutgoing = isCustomerUser && isInitiator && (callStatus === 'ringing' || callStatus === 'calling');
   
-  // Tema renkleri - partner->admin mor, diğerleri turuncu
-  const themeColors = (isPartnerUser && isCallingAdmin) ? {
-    gradientFrom: 'from-purple-900',
-    gradientVia: 'via-purple-800',
-    accent: 'text-purple-400',
-    pulseColor: 'bg-purple-500',
-    pulseColor2: 'bg-purple-400',
-    avatarFrom: 'from-purple-600',
-    avatarTo: 'to-purple-700'
-  } : {
+  // Tema renkleri - müşteri→partner turuncu
+  const themeColors = {
     gradientFrom: 'from-orange-900',
     gradientVia: 'via-orange-800',
     accent: 'text-orange-400',
@@ -81,16 +77,16 @@ const OutgoingCallUI: React.FC = () => {
 
   // Fullscreen mode - arama başladığında aktif et
   useEffect(() => {
-    if (callStatus === 'calling' && !isIncoming) {
+    if (isOutgoing) {
       enterFullscreen(document.documentElement);
     }
     return () => {
       // Arama bittiğinde fullscreen'den çık
-      if (callStatus !== 'calling' && callStatus !== 'connected') {
+      if (callStatus !== 'ringing' && callStatus !== 'connected') {
         exitFullscreen();
       }
     };
-  }, [callStatus, isIncoming]);
+  }, [isOutgoing, callStatus]);
 
   // Animasyonlu noktalar
   useEffect(() => {
@@ -102,13 +98,20 @@ const OutgoingCallUI: React.FC = () => {
     }
   }, [callStatus]);
 
-  // Sadece giden arama (calling) durumunda ve gelen arama değilse göster
-  if (callStatus !== 'calling' || isIncoming) return null;
+  // Sadece giden arama durumunda göster
+  if (!isOutgoing || !currentCall) return null;
 
   const handleEndCall = async () => {
     await exitFullscreen();
     endCall();
   };
+
+  console.log('📞 [OutgoingCallUI] Showing outgoing call UI', {
+    isCustomerUser,
+    isInitiator,
+    callStatus,
+    callId: currentCall.id
+  });
 
   return (
     <AnimatePresence>
@@ -171,7 +174,7 @@ const OutgoingCallUI: React.FC = () => {
             transition={{ delay: 0.2 }}
             className="text-3xl font-bold text-white mb-2"
           >
-            {currentCall?.receiverName || (currentCall?.receiverType === 'admin' ? 'Yolmov Destek' : 'Partner')}
+            Partner
           </motion.h2>
 
           {/* Aranıyor Animasyonu */}
