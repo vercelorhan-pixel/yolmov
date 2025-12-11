@@ -246,63 +246,114 @@ export const authApi = {
   },
 
   /**
-   * Partner kaydı - EMAIL CONFIRMATION KALDIRILDI
+   * Partner kaydı - EMAIL CONFIRMATION ATLANIR
+   * Backend API kullanarak email doğrulama maili gönderilmez
    * Admin onayı bekleyen partner kaydı oluşturur
    */
   signUpPartner: async (email: string, password: string, partnerData: Partial<Partner>) => {
     try {
       if (!email || !password) throw new Error('Email ve şifre gereklidir');
       
-      // ⚠️ NOT: Supabase signUp() her zaman confirmation email gönderir
-      // Çözüm: Supabase Dashboard > Authentication > Email Auth > "Enable email confirmations" KAPALI olmalı
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: undefined,  // Email redirect URL'i kaldır
-          data: { 
-            user_type: 'partner', 
-            first_name: partnerData.first_name, 
-            last_name: partnerData.last_name
-          }
-        }
+      console.log('🔐 signUpPartner started for:', email);
+      
+      // ✅ YENİ YÖNTEM: Backend API kullan (service_role ile email confirmation atla)
+      // Bu sayede Supabase Dashboard'da email confirmation açık olsa bile mail gönderilmez
+      const apiUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:3000/api/create-partner-user'
+        : '/api/create-partner-user';
+      
+      console.log('📡 Calling partner creation API...');
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: email.toLowerCase(),
+          password,
+          first_name: partnerData.first_name || '',
+          last_name: partnerData.last_name || '',
+          company_name: partnerData.company_name || '',
+          sector: partnerData.sector || null,
+          city: partnerData.city || null,
+          district: partnerData.district || null,
+          phone: partnerData.phone || null,
+          service_types: partnerData.service_types || null,
+          vehicle_count: partnerData.vehicle_count || 1,
+          vehicle_types: partnerData.vehicle_types || 'Genel Servis Aracı'
+        })
       });
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Auth kullanıcısı oluşturulamadı');
-
-      const dbPartner = {
-        id: authData.user.id,
-        name: partnerData.company_name || `${partnerData.first_name} ${partnerData.last_name}`.trim() || '',
-        first_name: partnerData.first_name || '',
-        last_name: partnerData.last_name || '',
-        company_name: partnerData.company_name || '',
-        tax_number: null,  // ✅ İLK KAYIT SIRASINDA ALINMIYOR - Panel'den eklenecek
-        sector: partnerData.sector || null,
-        city: partnerData.city || null,
-        district: partnerData.district || null,
-        phone: partnerData.phone || null,
-        email: email,
-        vehicle_count: partnerData.vehicle_count || 1,  // Default 1 araç
-        vehicle_types: partnerData.vehicle_types || 'Genel Servis Aracı',
-        service_types: partnerData.service_types || null,
-        commercial_registry_url: null,  // ✅ Belge yükleme sonraya bırakıldı
-        vehicle_license_url: null,      // ✅ Belge yükleme sonraya bırakıldı
-        status: 'pending',  // ✅ Admin onayı bekleyecek
-        rating: 0,
-        completed_jobs: 0,
-        credits: 0,
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        console.error('❌ Partner API error:', result);
+        throw new Error(result.error || 'Partner kaydı başarısız');
+      }
+      
+      console.log('✅ Partner created via API:', result);
+      
+      return { 
+        user: result.user, 
+        partner: result.partner 
       };
-
-      const { data: inserted, error: insertErr } = await supabase
-        .from('partners')
-        .insert(dbPartner)
-        .select()
-        .single();
-      if (insertErr) throw insertErr;
-
-      return { user: authData.user, partner: inserted };
     } catch (error: any) {
       console.error('❌ signUpPartner error:', error);
+      
+      // Fallback: API çalışmazsa eski yöntemi dene
+      // (Bu durumda email confirmation maili gidebilir)
+      if (error.message?.includes('fetch') || error.message?.includes('network')) {
+        console.log('⚠️ API unavailable, falling back to direct Supabase signup...');
+        
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: undefined,
+            data: { 
+              user_type: 'partner', 
+              first_name: partnerData.first_name, 
+              last_name: partnerData.last_name
+            }
+          }
+        });
+        if (authError) throw authError;
+        if (!authData.user) throw new Error('Auth kullanıcısı oluşturulamadı');
+
+        const dbPartner = {
+          id: authData.user.id,
+          name: partnerData.company_name || `${partnerData.first_name} ${partnerData.last_name}`.trim() || '',
+          first_name: partnerData.first_name || '',
+          last_name: partnerData.last_name || '',
+          company_name: partnerData.company_name || '',
+          tax_number: null,
+          sector: partnerData.sector || null,
+          city: partnerData.city || null,
+          district: partnerData.district || null,
+          phone: partnerData.phone || null,
+          email: email,
+          vehicle_count: partnerData.vehicle_count || 1,
+          vehicle_types: partnerData.vehicle_types || 'Genel Servis Aracı',
+          service_types: partnerData.service_types || null,
+          commercial_registry_url: null,
+          vehicle_license_url: null,
+          status: 'pending',
+          rating: 0,
+          completed_jobs: 0,
+          credits: 0,
+        };
+
+        const { data: inserted, error: insertErr } = await supabase
+          .from('partners')
+          .insert(dbPartner)
+          .select()
+          .single();
+        if (insertErr) throw insertErr;
+
+        return { user: authData.user, partner: inserted };
+      }
+      
       throw new Error(error.message || 'Partner kaydı başarısız');
     }
   },
