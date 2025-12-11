@@ -209,6 +209,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log('✅ Partner created successfully:', userId);
 
+    // 3) Otomatik hizmet bölgesi ekle (partner'ın kayıt olduğu il/ilçe)
+    // Bu sayede partner admin onayından sonra hemen listelenebilir
+    if (city) {
+      const serviceAreaData = {
+        partner_id: userId,
+        city: city,
+        districts: district ? [district] : null, // İlçe varsa array olarak ekle
+        is_primary: true,                         // İlk kayıt = ana hizmet bölgesi
+        price_multiplier: 1.00,                   // Standart fiyat
+        is_active: true,
+        notes: 'Kayıt sırasında otomatik oluşturuldu'
+      };
+
+      const serviceAreaResp = await fetch(`${url}/rest/v1/partner_service_areas`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': serviceKey,
+          'Authorization': `Bearer ${serviceKey}`,
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(serviceAreaData)
+      });
+
+      if (serviceAreaResp.ok) {
+        console.log('✅ Service area auto-created:', city, district || '(tüm il)');
+      } else {
+        const errorData = await serviceAreaResp.json().catch(() => null);
+        console.warn('⚠️ Service area creation failed (non-critical):', errorData);
+        // Hata olsa bile partner kaydı başarılı, devam et
+      }
+    }
+
     // Başarılı yanıt
     return res.status(201).json({
       success: true,
