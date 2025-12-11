@@ -4,6 +4,7 @@ import {
    CheckCircle2, ArrowRight, Truck, Wrench, 
    BatteryCharging, Disc, Loader, ArrowLeft
 } from 'lucide-react';
+import CustomSelect from './shared/CustomSelect';
 import { CITIES_WITH_DISTRICTS } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -499,44 +500,30 @@ const PartnerRegisterPageV2: React.FC = () => {
                           {/* City */}
                           <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">İl *</label>
-                            <div className="relative">
-                              <MapPin size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                              <select
-                                value={formData.city}
-                                onChange={(e) => handleInputChange('city', e.target.value)}
-                                className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:border-brand-orange focus:bg-white outline-none transition-all appearance-none cursor-pointer"
-                              >
-                                <option value="">İl Seçiniz</option>
-                                {Object.keys(CITIES_WITH_DISTRICTS).map(c => (
-                                  <option key={c} value={c}>{c}</option>
-                                ))}
-                              </select>
-                            </div>
-                            {formErrors.city && (
-                              <p className="text-red-500 text-xs mt-1">{formErrors.city}</p>
-                            )}
+                            <CustomSelect
+                              value={formData.city}
+                              onChange={(value) => handleInputChange('city', value)}
+                              options={Object.keys(CITIES_WITH_DISTRICTS)}
+                              placeholder="İl Seçiniz"
+                              icon={<MapPin size={20} />}
+                              error={formErrors.city}
+                              searchable={true}
+                            />
                           </div>
 
                           {/* District */}
                           <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">İlçe *</label>
-                            <div className="relative">
-                              <MapPin size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                              <select
-                                value={formData.district}
-                                onChange={(e) => handleInputChange('district', e.target.value)}
-                                disabled={!formData.city}
-                                className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl focus:border-brand-orange focus:bg-white outline-none transition-all appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                <option value="">İlçe Seçiniz</option>
-                                {formData.city && CITIES_WITH_DISTRICTS[formData.city].map(d => (
-                                  <option key={d} value={d}>{d}</option>
-                                ))}
-                              </select>
-                            </div>
-                            {formErrors.district && (
-                              <p className="text-red-500 text-xs mt-1">{formErrors.district}</p>
-                            )}
+                            <CustomSelect
+                              value={formData.district}
+                              onChange={(value) => handleInputChange('district', value)}
+                              options={formData.city ? CITIES_WITH_DISTRICTS[formData.city] : []}
+                              placeholder="İlçe Seçiniz"
+                              icon={<MapPin size={20} />}
+                              error={formErrors.district}
+                              disabled={!formData.city}
+                              searchable={true}
+                            />
                           </div>
 
                           {/* Info Box */}
@@ -610,7 +597,7 @@ const PartnerRegisterPageV2: React.FC = () => {
             {/* Trust Badge - Footer */}
             <div className="mt-8 text-center">
               <p className="text-sm text-slate-500">
-                <span className="font-semibold text-slate-700">1000+ Aktif Partner</span> — Güvenilir platform
+                <span className="font-semibold text-slate-700">Aktif Hizmet verenler</span> — Güvenilir platform
               </p>
             </div>
 
@@ -620,5 +607,6 @@ const PartnerRegisterPageV2: React.FC = () => {
     </div>
   );
 };
+
 
 export default PartnerRegisterPageV2;
