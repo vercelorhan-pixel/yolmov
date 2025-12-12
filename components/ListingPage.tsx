@@ -6,7 +6,7 @@ import {
   ClipboardList, ArrowRight, User, Calendar, 
   CheckCircle2, Star, ChevronRight, Map, Filter, DollarSign, X, ChevronDown,
   Navigation, Check, XCircle, ChevronLeft, Truck, BatteryCharging, Disc, Fuel, CarFront, Wrench, Loader2, Car, Route,
-  Compass, AlertCircle
+  Compass, AlertCircle, Phone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CITIES_WITH_DISTRICTS, SERVICES } from '../constants';
@@ -53,17 +53,117 @@ const ProviderCard = ({ provider, index, onClick }: { provider: ExtendedProvider
   const hasDistance = provider.distanceKm !== undefined && provider.distanceKm > 0;
   
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
-      onClick={handleCardClick}
-      className={`bg-white rounded-2xl p-6 shadow-sm border transition-all cursor-pointer group flex flex-col md:flex-row items-center gap-6 md:gap-8 relative ${
-        isReturnRoute 
-          ? 'border-green-200 hover:border-green-400 hover:shadow-green-100' 
-          : 'border-gray-100 hover:shadow-md hover:border-brand-orange/30'
-      }`}
-    >
+    <>
+      {/* Mobile Design (md: altı) */}
+      <motion.article
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.1 }}
+        className={`md:hidden bg-white rounded-2xl shadow-sm border transition-all overflow-hidden hover:shadow-md ${
+          isReturnRoute 
+            ? 'border-green-200' 
+            : 'border-gray-100'
+        }`}
+      >
+        <div className="p-4">
+          {/* Header: Avatar + Info */}
+          <div className="flex items-start gap-4">
+            <div className="relative flex-shrink-0">
+              <img 
+                src={provider.image} 
+                alt={provider.name} 
+                className="w-14 h-14 rounded-full object-cover shadow-md"
+              />
+              {provider.isVerified && (
+                <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
+                  <CheckCircle2 size={16} className="text-blue-500 fill-white" />
+                </div>
+              )}
+            </div>
+            
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-start">
+                <h2 className="font-bold text-lg text-gray-900 truncate pr-2">{provider.name}</h2>
+                {isReturnRoute && (
+                  <span className="flex-shrink-0 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    Boş Dönüş
+                  </span>
+                )}
+              </div>
+              
+              {/* Rating + Badge */}
+              <div className="flex items-center gap-3 mt-1 text-sm">
+                <div className="flex items-center text-yellow-500 font-bold">
+                  <Star size={16} className="fill-yellow-500 mr-0.5" />
+                  {provider.rating} 
+                  <span className="text-gray-400 font-normal ml-1 text-xs">({provider.reviewCount})</span>
+                </div>
+                <span className="bg-gray-100 text-gray-600 text-[10px] font-semibold px-2 py-0.5 rounded uppercase tracking-wide">
+                  {provider.serviceType}
+                </span>
+              </div>
+              
+              {/* Location */}
+              <div className="flex items-center gap-1 mt-2 text-gray-500 text-xs">
+                <MapPin size={14} />
+                <span className="truncate">{provider.location}</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Distance & ETA Boxes */}
+          {hasDistance && (
+            <div className="mt-4 flex gap-2">
+              <div className="flex-1 bg-blue-50 rounded-xl p-2.5 flex flex-col items-center justify-center border border-blue-100">
+                <span className="text-xs text-blue-600 font-medium mb-0.5">Mesafe</span>
+                <div className="flex items-center gap-1 text-blue-900 font-bold text-sm">
+                  <Navigation size={16} />
+                  {provider.distanceText}
+                </div>
+              </div>
+              
+              {provider.durationText && (
+                <div className="flex-1 bg-green-50 rounded-xl p-2.5 flex flex-col items-center justify-center border border-green-100">
+                  <span className="text-xs text-green-600 font-medium mb-0.5">Tahmini varış</span>
+                  <div className="flex items-center gap-1 text-green-900 font-bold text-sm">
+                    <Clock size={16} />
+                    {provider.durationText?.replace('~', '')}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Action Button */}
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick(provider);
+            }}
+            className={`w-full mt-3 font-medium py-2.5 rounded-xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${
+              isReturnRoute
+                ? 'bg-green-500 hover:bg-green-600 text-white shadow-green-500/30'
+                : 'bg-brand-orange hover:bg-orange-600 text-white shadow-orange-500/30'
+            }`}
+          >
+            <Phone size={16} />
+            İncele
+          </button>
+        </div>
+      </motion.article>
+
+      {/* Desktop Design (md+) */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.1 }}
+        onClick={handleCardClick}
+        className={`hidden md:flex bg-white rounded-2xl p-6 shadow-sm border transition-all cursor-pointer group flex-col md:flex-row items-center gap-6 md:gap-8 relative ${
+          isReturnRoute 
+            ? 'border-green-200 hover:border-green-400 hover:shadow-green-100' 
+            : 'border-gray-100 hover:shadow-md hover:border-brand-orange/30'
+        }`}
+      >
       {/* Return Route Badge */}
       {isReturnRoute && (
         <div className="absolute -top-2 -right-2 md:static md:absolute md:-top-3 md:-right-3">
@@ -203,6 +303,7 @@ const ProviderCard = ({ provider, index, onClick }: { provider: ExtendedProvider
       </div>
 
     </motion.div>
+    </>
   );
 };
 
