@@ -7,6 +7,7 @@ import {
 import { Conversation, Partner } from '../../types';
 import messagingApi from '../../services/messagingApi';
 import { supabaseApi, supabase } from '../../services/supabaseApi';
+import PartnerChatModal from './PartnerChatModal';
 
 interface PartnerMessagesInboxProps {
   partnerCredit?: number; // Dashboard'dan gelen kredi
@@ -81,14 +82,11 @@ const PartnerMessagesInbox: React.FC<PartnerMessagesInboxProps> = ({ partnerCred
     setRefreshing(false);
   };
 
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+
   const handleConversationClick = (conversation: Conversation) => {
-    if (conversation.isUnlocked) {
-      // Açık konuşma - direkt chat'e git
-      navigate(`/partner/mesajlar/${conversation.id}`);
-    } else {
-      // Kilitli - kilidi açma ekranına git
-      navigate(`/partner/mesajlar/${conversation.id}?unlock=true`);
-    }
+    // Aynı sayfa içinde modal aç - navigate yapma!
+    setSelectedConversation(conversation);
   };
 
   const getFilteredConversations = () => {
@@ -333,6 +331,17 @@ const PartnerMessagesInbox: React.FC<PartnerMessagesInboxProps> = ({ partnerCred
             </button>
           </div>
         </div>
+      )}
+
+      {/* Chat Modal */}
+      {selectedConversation && (
+        <PartnerChatModal
+          conversation={selectedConversation}
+          partnerId={partner?.id || ''}
+          partnerCredit={creditBalance}
+          onClose={() => setSelectedConversation(null)}
+          onCreditUpdate={loadData}
+        />
       )}
     </div>
   );
