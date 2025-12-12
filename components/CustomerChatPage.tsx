@@ -173,89 +173,115 @@ const CustomerChatPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col">
-      {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+    <div className="fixed inset-0 bg-gradient-to-b from-slate-50 to-slate-100 flex flex-col">
+      {/* Header - Modern Design */}
+      <header className="bg-white shadow-sm border-b border-slate-200">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
           <button
             onClick={() => navigate('/musteri/mesajlar')}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-slate-100 rounded-xl transition-all active:scale-95"
           >
-            <ArrowLeft size={24} />
+            <ArrowLeft size={24} className="text-slate-700" />
           </button>
           
-          <div className="flex items-center gap-3 flex-1">
-            <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-              <span className="text-lg font-bold text-orange-600">
-                {conversation?.partnerName?.charAt(0) || 'P'}
-              </span>
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {/* Partner Avatar */}
+            <div className="relative">
+              <div className="w-11 h-11 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center shadow-md">
+                <span className="text-lg font-bold text-white">
+                  {conversation?.partnerName?.charAt(0) || 'P'}
+                </span>
+              </div>
+              {/* Online status */}
+              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
             </div>
+            
+            {/* Partner Info */}
             <div className="flex-1 min-w-0">
-              <h1 className="font-bold text-slate-900 truncate">
+              <h1 className="font-bold text-slate-900 truncate text-lg">
                 {conversation?.partnerName || 'Partner'}
               </h1>
-              <p className="text-xs text-slate-500">
-                {conversation?.isUnlocked ? '✅ Aktif Görüşme' : '🔒 Kilitli'}
+              <p className="text-xs text-slate-500 flex items-center gap-1">
+                {conversation?.isUnlocked ? (
+                  <>
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    Aktif
+                  </>
+                ) : (
+                  <>
+                    <Lock size={12} />
+                    Kilitli
+                  </>
+                )}
               </p>
             </div>
           </div>
 
-          {/* Partner'ı Ara */}
-          {conversation?.isUnlocked && conversation?.partnerPhone && (
-            <a
-              href={`tel:${conversation.partnerPhone}`}
-              className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors"
-            >
-              <Phone size={20} />
-            </a>
-          )}
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            {conversation?.isUnlocked && conversation?.partnerPhone && (
+              <a
+                href={`tel:${conversation.partnerPhone}`}
+                className="p-2.5 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-all active:scale-95 shadow-sm"
+              >
+                <Phone size={20} />
+              </a>
+            )}
+          </div>
         </div>
       </header>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 pb-32">
+      {/* Messages Area - Beautiful Design */}
+      <div className="flex-1 overflow-y-auto px-4 py-6" style={{ paddingBottom: '90px' }}>
         {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <Loader2 size={40} className="animate-spin text-orange-500" />
+          <div className="flex flex-col items-center justify-center h-full">
+            <Loader2 size={48} className="animate-spin text-orange-500 mb-4" />
+            <p className="text-slate-500 text-sm">Mesajlar yükleniyor...</p>
           </div>
         ) : messages.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Clock size={32} className="text-slate-400" />
+          <div className="flex flex-col items-center justify-center h-full text-center px-6">
+            <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <Clock size={40} className="text-orange-600" />
             </div>
-            <p className="text-slate-600">Henüz mesaj yok</p>
-            <p className="text-sm text-slate-500 mt-1">
-              Partner yanıt verdiğinde mesajlar burada görünecek
+            <h3 className="text-xl font-bold text-slate-800 mb-2">Henüz Mesaj Yok</h3>
+            <p className="text-slate-500 max-w-sm">
+              Partner yanıt verdiğinde mesajlarınız burada görünecek
             </p>
           </div>
         ) : (
           <div className="max-w-2xl mx-auto space-y-6">
             {groupMessagesByDate().map((group) => (
               <div key={group.date}>
-                {/* Date Separator */}
-                <div className="flex items-center justify-center mb-4">
-                  <span className="px-3 py-1 bg-white text-xs text-slate-500 rounded-full shadow-sm">
+                {/* Date Separator - Modern */}
+                <div className="flex items-center justify-center mb-6">
+                  <div className="px-4 py-1.5 bg-white/80 backdrop-blur-sm text-xs font-medium text-slate-600 rounded-full shadow-sm border border-slate-200">
                     {group.displayDate}
-                  </span>
+                  </div>
                 </div>
 
-                {/* Messages */}
-                <div className="space-y-3">
+                {/* Messages - Modern Bubbles */}
+                <div className="space-y-4">
                   {group.messages.map((msg) => (
                     <div
                       key={msg.id}
-                      className={`flex ${msg.senderType === 'customer' ? 'justify-end' : 'justify-start'}`}
+                      className={`flex items-end gap-2 ${msg.senderType === 'customer' ? 'justify-end' : 'justify-start'}`}
                     >
+                      {msg.senderType === 'partner' && (
+                        <div className="w-8 h-8 bg-gradient-to-br from-slate-300 to-slate-400 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-md mb-1">
+                          {conversation?.partnerName?.charAt(0) || 'P'}
+                        </div>
+                      )}
+                      
                       <div
-                        className={`max-w-[80%] px-4 py-2.5 rounded-2xl ${
+                        className={`max-w-[75%] px-4 py-3 rounded-2xl transition-all ${
                           msg.senderType === 'customer'
-                            ? 'bg-orange-500 text-white rounded-br-md'
-                            : 'bg-white text-slate-900 rounded-bl-md shadow-sm'
+                            ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-br-sm shadow-lg'
+                            : 'bg-white text-slate-900 rounded-bl-sm shadow-md border border-slate-100'
                         }`}
                       >
-                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                        <p className={`text-[10px] mt-1 ${
-                          msg.senderType === 'customer' ? 'text-orange-200' : 'text-slate-400'
+                        <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                        <p className={`text-[11px] mt-1.5 ${
+                          msg.senderType === 'customer' ? 'text-orange-100' : 'text-slate-400'
                         }`}>
                           {formatTime(msg.createdAt)}
                         </p>
@@ -270,34 +296,35 @@ const CustomerChatPage: React.FC = () => {
         )}
       </div>
 
-      {/* Message Input - Fixed Bottom */}
-      <div className="fixed bottom-16 lg:bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4">
-        <div className="max-w-2xl mx-auto flex gap-3">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-            placeholder="Mesajınızı yazın..."
-            className="flex-1 px-4 py-3 bg-slate-100 rounded-xl border-0 focus:ring-2 focus:ring-orange-500 outline-none"
-            disabled={sending}
-          />
-          <button
-            onClick={handleSendMessage}
-            disabled={sending || !newMessage.trim()}
-            className="px-4 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {sending ? (
-              <Loader2 size={20} className="animate-spin" />
-            ) : (
-              <Send size={20} />
-            )}
-          </button>
+      {/* Message Input - Modern Fixed Bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-2xl" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}>
+        <div className="max-w-2xl mx-auto px-4 py-4">
+          <div className="flex items-end gap-3">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                placeholder="Mesajınızı yazın..."
+                className="w-full px-4 py-3.5 bg-slate-50 rounded-2xl border-2 border-slate-200 focus:border-orange-400 focus:bg-white outline-none transition-all text-[15px] placeholder:text-slate-400"
+                disabled={sending}
+              />
+            </div>
+            <button
+              onClick={handleSendMessage}
+              disabled={sending || !newMessage.trim()}
+              className="p-3.5 bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-2xl hover:from-orange-600 hover:to-orange-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 shadow-lg disabled:shadow-none"
+            >
+              {sending ? (
+                <Loader2 size={22} className="animate-spin" />
+              ) : (
+                <Send size={22} />
+              )}
+            </button>
+          </div>
         </div>
       </div>
-
-      {/* Bottom Navigation - Mobile */}
-      <CustomerBottomNav />
     </div>
   );
 };
