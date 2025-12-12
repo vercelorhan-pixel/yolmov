@@ -563,6 +563,33 @@ export interface AvailablePartner {
   discountPercent?: number;                // Boş dönüş indirimi
   isPrimaryArea?: boolean;                 // Ana hizmet bölgesi mi?
   departureDate?: string;                  // Boş dönüş tarihi
+  
+  // Mesafe & ETA bilgileri (distanceService ile hesaplanır)
+  distanceKm?: number;                     // Mesafe (km)
+  distanceText?: string;                   // "12.5 km" formatında
+  durationMinutes?: number;                // Varış süresi (dakika)
+  durationText?: string;                   // "~15 dk" formatında
+  partnerLatitude?: number;                // Partner enlem koordinatı
+  partnerLongitude?: number;               // Partner boylam koordinatı
+  
+  // Partner ek bilgileri (listing için)
+  companyName?: string;
+  partnerPhone?: string;
+  partnerEmail?: string;
+  serviceTypes?: string[];
+  profilePhotoUrl?: string;
+  logoUrl?: string;
+  city?: string;
+  district?: string;
+  priceMultiplier?: number;
+  vehicleType?: string;
+  vehiclePlate?: string;
+  originCity?: string;
+  destinationCity?: string;
+  notes?: string;
+  rating?: number;
+  completedJobs?: number;
+  matchType?: 'service_area' | 'return_route';
 }
 
 // ============================================

@@ -5,12 +5,19 @@ import {
   Clock, MapPin, ShieldCheck, Search, 
   ClipboardList, ArrowRight, User, Calendar, 
   CheckCircle2, Star, ChevronRight, Map, Filter, DollarSign, X, ChevronDown,
-  Navigation, Check, XCircle, ChevronLeft, Truck, BatteryCharging, Disc, Fuel, CarFront, Wrench, Loader2, Car, Route
+  Navigation, Check, XCircle, ChevronLeft, Truck, BatteryCharging, Disc, Fuel, CarFront, Wrench, Loader2, Car, Route,
+  Compass, AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CITIES_WITH_DISTRICTS, SERVICES } from '../constants';
 import { Provider, AvailablePartner } from '../types';
 import { supabaseApi } from '../services/supabaseApi';
+import { 
+  calculateDistancesBatch, 
+  getCityCoordinates, 
+  reverseGeocode,
+  Coordinates 
+} from '../services/distanceService';
 
 interface ListingPageProps {
   initialCity?: string;
@@ -29,6 +36,11 @@ interface ExtendedProvider extends Provider {
     destination?: string;
     departureDate?: string;
   };
+  // 🆕 Mesafe & ETA bilgileri
+  distanceKm?: number;
+  distanceText?: string;
+  durationMinutes?: number;
+  durationText?: string;
 }
 
 const ProviderCard = ({ provider, index, onClick }: { provider: ExtendedProvider, index: number, onClick: (provider: Provider) => void }) => {
@@ -38,6 +50,7 @@ const ProviderCard = ({ provider, index, onClick }: { provider: ExtendedProvider
   };
 
   const isReturnRoute = provider.matchType === 'return_route';
+  const hasDistance = provider.distanceKm !== undefined && provider.distanceKm > 0;
   
   return (
     <motion.div
@@ -45,7 +58,7 @@ const ProviderCard = ({ provider, index, onClick }: { provider: ExtendedProvider
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
       onClick={handleCardClick}
-      className={`bg-white rounded-2xl p-6 shadow-sm border transition-all cursor-pointer group flex flex-col md:flex-row items-center gap-6 md:gap-8 ${
+      className={`bg-white rounded-2xl p-6 shadow-sm border transition-all cursor-pointer group flex flex-col md:flex-row items-center gap-6 md:gap-8 relative ${
         isReturnRoute 
           ? 'border-green-200 hover:border-green-400 hover:shadow-green-100' 
           : 'border-gray-100 hover:shadow-md hover:border-brand-orange/30'
@@ -95,7 +108,7 @@ const ProviderCard = ({ provider, index, onClick }: { provider: ExtendedProvider
                   <span className="text-sm font-bold text-gray-800">{provider.rating}</span>
                   <span className="text-xs text-gray-400">({provider.reviewCount})</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="inline-block px-2 py-0.5 bg-gray-100 rounded text-[10px] font-bold text-gray-600 uppercase tracking-wide">
                     {provider.serviceType}
                 </span>
@@ -108,37 +121,65 @@ const ProviderCard = ({ provider, index, onClick }: { provider: ExtendedProvider
           </div>
       </div>
 
-      {/* MIDDLE: Location / Route Info */}
+      {/* MIDDLE: Location / Route Info + Distance/ETA */}
       <div className="flex-1 w-full md:w-auto flex items-center md:border-l md:border-gray-100 md:pl-8 py-2">
-          <div className="flex flex-col justify-center w-full">
-              <div className="flex items-center gap-1.5 text-gray-400 text-xs font-bold mb-0.5">
-                  {isReturnRoute ? (
-                    <>
-                      <Route size={14} /> Rota
-                    </>
-                  ) : (
-                    <>
-                      <Map size={14} /> Konum
-                    </>
+          <div className="flex flex-col md:flex-row md:items-center gap-4 w-full">
+              {/* Location Info */}
+              <div className="flex flex-col justify-center flex-1">
+                  <div className="flex items-center gap-1.5 text-gray-400 text-xs font-bold mb-0.5">
+                      {isReturnRoute ? (
+                        <>
+                          <Route size={14} /> Rota
+                        </>
+                      ) : (
+                        <>
+                          <Map size={14} /> Konum
+                        </>
+                      )}
+                  </div>
+                  <div className="text-gray-800 font-semibold text-sm md:text-base truncate">
+                      {isReturnRoute && provider.routeInfo ? (
+                        <span className="flex items-center gap-2">
+                          <span>{provider.routeInfo.origin}</span>
+                          <ChevronRight size={14} className="text-gray-400" />
+                          <span className="text-green-600 font-bold">{provider.location}</span>
+                          <ChevronRight size={14} className="text-gray-400" />
+                          <span>{provider.routeInfo.destination}</span>
+                        </span>
+                      ) : (
+                        provider.location
+                      )}
+                  </div>
+                  {isReturnRoute && provider.routeInfo?.departureDate && (
+                    <div className="text-xs text-gray-400 mt-1">
+                      <Calendar size={12} className="inline mr-1" />
+                      {new Date(provider.routeInfo.departureDate).toLocaleDateString('tr-TR')}
+                    </div>
                   )}
               </div>
-              <div className="text-gray-800 font-semibold text-sm md:text-base truncate">
-                  {isReturnRoute && provider.routeInfo ? (
-                    <span className="flex items-center gap-2">
-                      <span>{provider.routeInfo.origin}</span>
-                      <ChevronRight size={14} className="text-gray-400" />
-                      <span className="text-green-600 font-bold">{provider.location}</span>
-                      <ChevronRight size={14} className="text-gray-400" />
-                      <span>{provider.routeInfo.destination}</span>
-                    </span>
-                  ) : (
-                    provider.location
+              
+              {/* 🆕 Distance & ETA Badges */}
+              {hasDistance && (
+                <div className="flex items-center gap-2 md:border-l md:border-gray-100 md:pl-4">
+                  {/* Distance Badge */}
+                  <div className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 rounded-lg border border-blue-100">
+                    <Navigation size={16} className="text-blue-500" />
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-blue-400 font-medium uppercase tracking-wide">Mesafe</span>
+                      <span className="text-sm font-bold text-blue-600">{provider.distanceText}</span>
+                    </div>
+                  </div>
+                  
+                  {/* ETA Badge */}
+                  {provider.durationText && (
+                    <div className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 rounded-lg border border-orange-100">
+                      <Clock size={16} className="text-brand-orange" />
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-orange-400 font-medium uppercase tracking-wide">Varış</span>
+                        <span className="text-sm font-bold text-brand-orange">{provider.durationText}</span>
+                      </div>
+                    </div>
                   )}
-              </div>
-              {isReturnRoute && provider.routeInfo?.departureDate && (
-                <div className="text-xs text-gray-400 mt-1">
-                  <Calendar size={12} className="inline mr-1" />
-                  {new Date(provider.routeInfo.departureDate).toLocaleDateString('tr-TR')}
                 </div>
               )}
           </div>
@@ -187,7 +228,7 @@ const ListingPage: React.FC = () => {
   const [isServiceOpen, setIsServiceOpen] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState(initialServiceId);
   
-  const [sortBy, setSortBy] = useState('eta');
+  const [sortBy, setSortBy] = useState('distance'); // Varsayılan mesafeye göre sırala
   const [verifiedOnly, setVerifiedOnly] = useState(false);
 
   // Animation State (Hero mantığı)
@@ -206,6 +247,11 @@ const ListingPage: React.FC = () => {
   
   // Track if initial data fetch is done
   const [dataFetched, setDataFetched] = useState(false);
+
+  // 🆕 Kullanıcı konum bilgisi (mesafe/ETA hesaplama için)
+  const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
+  const [isCalculatingDistances, setIsCalculatingDistances] = useState(false);
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
 
   const locationRef = useRef<HTMLDivElement>(null);
   const serviceRef = useRef<HTMLDivElement>(null);
@@ -280,10 +326,17 @@ const ListingPage: React.FC = () => {
 
     setIsLoadingLocation(true);
     setIsLocationOpen(false);
+    setLocationPermissionDenied(false);
     
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
+        
+        // 🆕 Koordinatları state'e kaydet (mesafe hesaplama için)
+        setUserCoordinates({ lat: latitude, lng: longitude });
+        
+        // SessionStorage'a da kaydet (sayfa yenilemesi için)
+        sessionStorage.setItem('yolmov_user_coords', JSON.stringify({ lat: latitude, lng: longitude }));
         
         try {
           const response = await fetch(
@@ -329,13 +382,84 @@ const ListingPage: React.FC = () => {
         }
       },
       (error) => {
-        alert('Konum erişimi reddedildi.');
+        console.warn('Konum erişimi reddedildi:', error.message);
+        setLocationPermissionDenied(true);
         setIsLoadingLocation(false);
         setIsLocationOpen(true);
+        // Sessizce devam et - kullanıcı manuel seçebilir
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
+
+  // 🆕 Partner mesafelerini hesapla
+  const calculatePartnerDistances = useCallback(async (
+    partners: AvailablePartner[],
+    userCoords: Coordinates
+  ): Promise<AvailablePartner[]> => {
+    if (!userCoords || partners.length === 0) return partners;
+    
+    setIsCalculatingDistances(true);
+    
+    try {
+      // Partner koordinatlarını hazırla
+      const partnerLocations = await Promise.all(
+        partners.map(async (partner) => {
+          // Önce partner'ın kendi koordinatlarına bak
+          if (partner.partnerLatitude && partner.partnerLongitude) {
+            return {
+              partnerId: partner.partnerId,
+              coordinates: { lat: partner.partnerLatitude, lng: partner.partnerLongitude }
+            };
+          }
+          
+          // Yoksa şehir/ilçe'den geocode et
+          const coords = await getCityCoordinates(partner.city || '');
+          if (coords) {
+            return {
+              partnerId: partner.partnerId,
+              coordinates: coords
+            };
+          }
+          
+          return null;
+        })
+      );
+      
+      // Null olmayanları filtrele
+      const validLocations = partnerLocations.filter((loc): loc is NonNullable<typeof loc> => loc !== null);
+      
+      if (validLocations.length === 0) {
+        setIsCalculatingDistances(false);
+        return partners;
+      }
+      
+      // Batch mesafe hesaplama
+      const distanceResults = await calculateDistancesBatch(userCoords, validLocations);
+      
+      // Sonuçları partner'lara ekle
+      const updatedPartners = partners.map(partner => {
+        const distance = distanceResults.get(partner.partnerId);
+        if (distance && distance.success) {
+          return {
+            ...partner,
+            distanceKm: distance.distanceKm,
+            distanceText: distance.distanceText,
+            durationMinutes: distance.durationMinutes,
+            durationText: distance.durationText
+          };
+        }
+        return partner;
+      });
+      
+      setIsCalculatingDistances(false);
+      return updatedPartners;
+    } catch (error) {
+      console.error('Mesafe hesaplama hatası:', error);
+      setIsCalculatingDistances(false);
+      return partners;
+    }
+  }, []);
 
   // Fetch available partners from API when city changes
   const fetchAvailablePartners = useCallback(async (city: string, district?: string, isInitial: boolean = false) => {
@@ -348,8 +472,29 @@ const ListingPage: React.FC = () => {
     setIsLoadingPartners(true);
     try {
       const partners = await supabaseApi.partnerSearch.getAvailablePartners(city, district);
-      setAvailablePartners(partners);
-      console.log(`✅ Found ${partners.length} available partners for ${city}${district ? `, ${district}` : ''}`);
+      
+      // 🆕 Kullanıcı koordinatları varsa mesafeleri hesapla
+      let partnersWithDistance = partners;
+      
+      // SessionStorage'dan koordinatları kontrol et
+      const storedCoords = sessionStorage.getItem('yolmov_user_coords');
+      let coords = userCoordinates;
+      
+      if (!coords && storedCoords) {
+        try {
+          coords = JSON.parse(storedCoords);
+          setUserCoordinates(coords);
+        } catch (e) {
+          console.warn('Koordinat parse hatası:', e);
+        }
+      }
+      
+      if (coords && partners.length > 0) {
+        partnersWithDistance = await calculatePartnerDistances(partners, coords);
+      }
+      
+      setAvailablePartners(partnersWithDistance);
+      console.log(`✅ Found ${partners.length} available partners for ${city}${district ? `, ${district}` : ''}${coords ? ' (mesafeler hesaplandı)' : ''}`);
     } catch (error) {
       console.error('❌ Error fetching available partners:', error);
       setAvailablePartners([]);
@@ -359,10 +504,53 @@ const ListingPage: React.FC = () => {
         setDataFetched(true);
       }
     }
-  }, []);
+  }, [userCoordinates, calculatePartnerDistances]);
 
   // Animasyon başlangıç zamanını takip et
   const animationStartTimeRef = useRef<number>(0);
+
+  // 🆕 Sayfa yüklendiğinde kullanıcı koordinatlarını kontrol et veya iste
+  useEffect(() => {
+    // SessionStorage'dan koordinatları kontrol et
+    const storedCoords = sessionStorage.getItem('yolmov_user_coords');
+    if (storedCoords) {
+      try {
+        const coords = JSON.parse(storedCoords);
+        setUserCoordinates(coords);
+        console.log('📍 Kaydedilmiş koordinatlar yüklendi:', coords);
+        return; // Zaten var, tekrar isteme
+      } catch (e) {
+        console.warn('Koordinat parse hatası:', e);
+      }
+    }
+    
+    // Koordinat yoksa ve konum izni kontrolü
+    if (navigator.geolocation && navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+        if (result.state === 'granted') {
+          // İzin zaten verilmiş, koordinatları al
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
+              setUserCoordinates(coords);
+              sessionStorage.setItem('yolmov_user_coords', JSON.stringify(coords));
+              console.log('📍 Konum alındı (granted):', coords);
+            },
+            () => {
+              console.log('📍 Konum alınamadı');
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 } // 5 dk cache
+          );
+        } else if (result.state === 'prompt') {
+          // İzin sorulacak - kullanıcı "Konumumu Kullan" tıklarsa sorulur
+          console.log('📍 Konum izni henüz sorulmadı - kullanıcı aksiyonu bekleniyor');
+        } else {
+          setLocationPermissionDenied(true);
+          console.log('📍 Konum izni reddedilmiş');
+        }
+      });
+    }
+  }, []);
 
   // Initial page load with animation - API ve minimum süre birlikte bekle
   // NOT: Hero'dan geldiyse (fromHero=1), animasyonu başlatma - Hero zaten gösterdi
@@ -506,8 +694,13 @@ const ListingPage: React.FC = () => {
           origin: partner.originCity,
           destination: partner.destinationCity,
           departureDate: partner.departureDate
-        } : undefined
-      } as Provider & { matchType?: string; discountPercent?: number; routeInfo?: any };
+        } : undefined,
+        // 🆕 Mesafe & ETA bilgileri
+        distanceKm: partner.distanceKm,
+        distanceText: partner.distanceText,
+        durationMinutes: partner.durationMinutes,
+        durationText: partner.durationText
+      } as ExtendedProvider;
     });
   }, [availablePartners]);
 
@@ -525,10 +718,24 @@ const ListingPage: React.FC = () => {
         ? apiProviders.filter(p => p.isVerified) 
         : apiProviders;
 
-      // Return API partners (sorted: service_area first, then return_route)
+      // 🆕 Sıralama: mesafeye göre veya varsayılan (service_area önce)
       const sortedApiProviders = [...verifiedFiltered].sort((a, b) => {
-        const aType = (a as any).matchType;
-        const bType = (b as any).matchType;
+        const aExt = a as ExtendedProvider;
+        const bExt = b as ExtendedProvider;
+        
+        // Önce mesafeye göre sırala (eğer her ikisinde de mesafe varsa)
+        if (sortBy === 'distance') {
+          if (aExt.distanceKm !== undefined && bExt.distanceKm !== undefined) {
+            return aExt.distanceKm - bExt.distanceKm;
+          }
+          // Mesafesi olan önce gelsin
+          if (aExt.distanceKm !== undefined) return -1;
+          if (bExt.distanceKm !== undefined) return 1;
+        }
+        
+        // Sonra match type'a göre (service_area önce)
+        const aType = aExt.matchType;
+        const bType = bExt.matchType;
         if (aType === 'service_area' && bType === 'return_route') return -1;
         if (aType === 'return_route' && bType === 'service_area') return 1;
         return 0;
@@ -539,7 +746,7 @@ const ListingPage: React.FC = () => {
 
     // No API data = empty list (no mock data)
     return [];
-  }, [verifiedOnly, partnersAsProviders, showEmptyRoutes]);
+  }, [verifiedOnly, partnersAsProviders, showEmptyRoutes, sortBy]);
 
   const displayProviders = filteredProviders;
 
@@ -1016,25 +1223,86 @@ const ListingPage: React.FC = () => {
               )}
            </div>
            
-           {/* Empty Route Toggle */}
-           {availablePartners.some(p => p.matchType === 'return_route') && (
-             <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm">
-               <Route size={18} className="text-green-500" />
-               <label className="flex items-center gap-2 cursor-pointer">
-                 <input
-                   type="checkbox"
-                   checked={showEmptyRoutes}
-                   onChange={(e) => setShowEmptyRoutes(e.target.checked)}
-                   className="sr-only"
-                 />
-                 <div className={`w-10 h-5 rounded-full transition-colors ${showEmptyRoutes ? 'bg-green-500' : 'bg-gray-300'}`}>
-                   <div className={`w-4 h-4 rounded-full bg-white shadow transform transition-transform mt-0.5 ${showEmptyRoutes ? 'translate-x-5 ml-0.5' : 'translate-x-0.5'}`} />
-                 </div>
-                 <span className="text-sm font-medium text-gray-700">Boş Dönüş Araçlarını Göster</span>
-               </label>
-             </div>
-           )}
+           {/* 🆕 Distance/ETA Info & Sorting */}
+           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+             {/* Location Status Badge */}
+             {userCoordinates ? (
+               <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-100 rounded-lg">
+                 <Compass size={16} className="text-green-500" />
+                 <span className="text-xs font-medium text-green-700">
+                   Konumunuz alındı - Mesafeler gösteriliyor
+                 </span>
+               </div>
+             ) : locationPermissionDenied ? (
+               <button 
+                 onClick={handleUseCurrentLocation}
+                 className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-100 rounded-lg hover:bg-orange-100 transition-colors"
+               >
+                 <AlertCircle size={16} className="text-orange-500" />
+                 <span className="text-xs font-medium text-orange-700">
+                   Konum izni verilmedi - Tekrar dene
+                 </span>
+               </button>
+             ) : (
+               <button 
+                 onClick={handleUseCurrentLocation}
+                 disabled={isLoadingLocation}
+                 className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
+               >
+                 {isLoadingLocation ? (
+                   <Loader2 size={16} className="text-blue-500 animate-spin" />
+                 ) : (
+                   <Navigation size={16} className="text-blue-500" />
+                 )}
+                 <span className="text-xs font-medium text-blue-700">
+                   {isLoadingLocation ? 'Konum alınıyor...' : 'Mesafeleri göster'}
+                 </span>
+               </button>
+             )}
+             
+             {/* Sort by distance option */}
+             {userCoordinates && availablePartners.some(p => p.distanceKm !== undefined) && (
+               <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-gray-100 shadow-sm">
+                 <label className="text-xs font-medium text-gray-500">Sırala:</label>
+                 <select 
+                   value={sortBy}
+                   onChange={(e) => setSortBy(e.target.value)}
+                   className="text-sm font-medium text-gray-700 bg-transparent border-0 focus:outline-none cursor-pointer"
+                 >
+                   <option value="distance">Mesafe (Yakından)</option>
+                   <option value="default">Varsayılan</option>
+                 </select>
+               </div>
+             )}
+           </div>
         </div>
+        
+        {/* Distance Calculating Indicator */}
+        {isCalculatingDistances && (
+          <div className="mb-4 p-3 bg-blue-50 rounded-lg flex items-center gap-3">
+            <Loader2 size={18} className="text-blue-500 animate-spin" />
+            <span className="text-sm text-blue-600 font-medium">Mesafeler hesaplanıyor...</span>
+          </div>
+        )}
+           
+        {/* Empty Route Toggle */}
+        {availablePartners.some(p => p.matchType === 'return_route') && (
+          <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm mb-6">
+            <Route size={18} className="text-green-500" />
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showEmptyRoutes}
+                onChange={(e) => setShowEmptyRoutes(e.target.checked)}
+                className="sr-only"
+              />
+              <div className={`w-10 h-5 rounded-full transition-colors ${showEmptyRoutes ? 'bg-green-500' : 'bg-gray-300'}`}>
+                <div className={`w-4 h-4 rounded-full bg-white shadow transform transition-transform mt-0.5 ${showEmptyRoutes ? 'translate-x-5 ml-0.5' : 'translate-x-0.5'}`} />
+              </div>
+              <span className="text-sm font-medium text-gray-700">Boş Dönüş Araçlarını Göster</span>
+            </label>
+          </div>
+        )}
 
         {/* Loading Indicator for Partner Search - sadece sonraki aramalar için (ilk yükleme hariç) */}
         {isLoadingPartners && initialLoadComplete && !isInitialLoading && (
