@@ -36,6 +36,8 @@ const PartnerRegisterPage = React.lazy(() => import('./components/PartnerRegiste
 const PartnerRegisterPageV2 = React.lazy(() => import('./components/PartnerRegisterPageV2'));
 const PartnerRegistrationSuccess = React.lazy(() => import('./components/PartnerRegistrationSuccess'));
 const PartnerDashboard = React.lazy(() => import('./components/PartnerDashboard'));
+const PartnerMessagesInbox = React.lazy(() => import('./components/partner/PartnerMessagesInbox'));
+const PartnerChatPage = React.lazy(() => import('./components/partner/PartnerChatPage'));
 const CustomerProfilePage = React.lazy(() => import('./components/CustomerProfilePage'));
 const CustomerRequestsPage = React.lazy(() => import('./components/CustomerRequestsPage'));
 const OffersPanel = React.lazy(() => import('./components/OffersPanel'));
@@ -188,6 +190,8 @@ function App() {
             {/* Partner Dashboard */}
             <Route path="/partner" element={<PartnerDashboard />} />
             <Route path="/partner/inceleniyor" element={<PartnerReviewPendingPage />} />
+            <Route path="/partner/mesajlar" element={<PartnerMessagesInbox />} />
+            <Route path="/partner/mesajlar/:conversationId" element={<PartnerChatPage />} />
             <Route path="/sifre-olustur" element={<PasswordSetupPage />} />
             
             {/* Customer - Protected Routes */}

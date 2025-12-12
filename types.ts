@@ -819,3 +819,107 @@ export interface RouteCache {
   expiresAt: string;
 }
 
+// ============================================
+// MESSAGING SYSTEM TYPES
+// ============================================
+
+export interface Conversation {
+  id: string;
+  customerId: string;
+  partnerId: string;
+  serviceType?: string;
+  
+  // Kilit Mekanizması
+  isUnlocked: boolean;
+  unlockPrice: number;
+  unlockedAt?: string;
+  unlockedBy?: string;
+  
+  // İstatistikler
+  lastMessageAt?: string;
+  customerUnreadCount: number;
+  partnerUnreadCount: number;
+  
+  // Durum
+  status: 'active' | 'archived' | 'blocked';
+  
+  // Metadata
+  customerLocation?: string;
+  customerLocationLat?: number;
+  customerLocationLng?: number;
+  
+  // Populated fields (join)
+  customerName?: string;
+  customerPhone?: string;
+  partnerName?: string;
+  partnerPhone?: string;
+  lastMessage?: Message;
+  
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderType: 'customer' | 'partner' | 'admin';
+  
+  // Content
+  content: string;
+  contentMasked?: string; // Kilitli durumda gösterilen
+  
+  // Attachments
+  attachmentUrls?: string[];
+  
+  // Read Status
+  isRead: boolean;
+  readAt?: string;
+  
+  // Flags
+  isSystemMessage: boolean;
+  isDeleted: boolean;
+  
+  // Populated fields
+  senderName?: string;
+  senderAvatar?: string;
+  
+  createdAt: string;
+}
+
+export interface Transaction {
+  id: string;
+  partnerId: string;
+  type: 'CREDIT_PURCHASE' | 'CHAT_UNLOCK' | 'REFUND' | 'CREDIT_GIFT' | 'DEBIT';
+  amount: number; // Pozitif: eklenen, Negatif: harcanan
+  balanceAfter: number;
+  description?: string;
+  metadata?: {
+    conversationId?: string;
+    customerName?: string;
+    paymentMethod?: string;
+    [key: string]: any;
+  };
+  status: 'completed' | 'pending' | 'failed' | 'refunded';
+  createdAt: string;
+}
+
+export interface MessageTemplate {
+  id: string;
+  userType: 'customer' | 'partner';
+  title: string;
+  content: string;
+  category?: string;
+  isActive: boolean;
+  usageCount: number;
+  createdAt: string;
+}
+
+export interface BlockedContact {
+  id: string;
+  blockerId: string;
+  blockedId: string;
+  reason?: string;
+  createdAt: string;
+}
+
