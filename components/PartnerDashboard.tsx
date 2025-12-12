@@ -37,6 +37,7 @@ import PartnerMyOffersTab from './partner/PartnerMyOffersTab';
 import PartnerServiceRoutesTab from './partner/PartnerServiceRoutesTab';
 import PartnerNewJobsTab from './partner/PartnerNewJobsTab';
 import PartnerSettingsTab, { SettingsSubTab } from './partner/PartnerSettingsTab';
+import PartnerMessagesInbox from './partner/PartnerMessagesInbox';
 import { compressImage, isImageFile, createPreviewUrl } from '../utils/imageCompression';
 import Toast from './shared/Toast';
 import { useToast } from '../utils/useToast';
@@ -3777,19 +3778,7 @@ const PartnerDashboard: React.FC = () => {
           )}
           {activeTab === 'messages' && (
             <div className="p-6">
-              <div className="bg-white rounded-2xl p-8 text-center">
-                <MessageSquare size={64} className="mx-auto mb-4 text-blue-500" />
-                <h3 className="text-2xl font-bold text-slate-800 mb-2">Mesajlar</h3>
-                <p className="text-slate-600 mb-6">
-                  Müşterilerinizle güvenli mesajlaşma için ayrıntılı mesajlaşma sayfasına gidin.
-                </p>
-                <button
-                  onClick={() => navigate('/partner/mesajlar')}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
-                >
-                  Mesajlar Sayfasına Git
-                </button>
-              </div>
+              <PartnerMessagesInbox />
             </div>
           )}
           {activeTab === 'settings' && (
