@@ -282,8 +282,7 @@ export const messagingApi = {
       const { error: creditError } = await supabase
         .from('partner_credits')
         .update({ 
-          balance: newBalance,
-          total_spent: supabase.rpc ? undefined : newBalance // total_spent güncelleme opsiyonel
+          balance: newBalance
         })
         .eq('partner_id', partnerId);
       

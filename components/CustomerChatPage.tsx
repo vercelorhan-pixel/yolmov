@@ -27,6 +27,37 @@ const CustomerChatPage: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    // Realtime mesaj dinleme
+    if (!conversationId) return;
+
+    const channel = supabase
+      .channel(`conversation:${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        (payload) => {
+          console.log('📨 [Realtime] New message received:', payload);
+          const newMsg = payload.new as Message;
+          setMessages((prev) => {
+            // Mesaj zaten listede varsa ekleme
+            if (prev.some(m => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -78,7 +109,7 @@ const CustomerChatPage: React.FC = () => {
         content: newMessage.trim()
       });
 
-      setMessages([...messages, message]);
+      // Realtime mesaj eklenecek, manuel ekleme yapma
       setNewMessage('');
     } catch (error) {
       console.error('Failed to send message:', error);

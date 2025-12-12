@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, Lock, Unlock, Loader2, AlertCircle } from 'lucide-react';
 import { Conversation, Message } from '../../types';
 import messagingApi from '../../services/messagingApi';
+import { supabase } from '../../services/supabaseApi';
 
 interface PartnerChatModalProps {
   conversation: Conversation;
@@ -34,6 +35,37 @@ const PartnerChatModal: React.FC<PartnerChatModalProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    // Realtime mesaj dinleme (sadece unlock edilmişse)
+    if (!isUnlocked) return;
+
+    const channel = supabase
+      .channel(`conversation:${conversation.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversation.id}`
+        },
+        (payload: any) => {
+          console.log('📨 [Partner Realtime] New message received:', payload);
+          const newMsg = payload.new as Message;
+          setMessages((prev) => {
+            // Mesaj zaten listede varsa ekleme
+            if (prev.some(m => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isUnlocked, conversation.id]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -95,7 +127,7 @@ const PartnerChatModal: React.FC<PartnerChatModalProps> = ({
         content: newMessage.trim()
       });
 
-      setMessages([...messages, message]);
+      // Realtime mesaj eklenecek, manuel ekleme yapma
       setNewMessage('');
     } catch (error) {
       console.error('❌ Failed to send message:', error);
