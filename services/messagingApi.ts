@@ -22,6 +22,12 @@ export const messagingApi = {
     customerLocationLat?: number;
     customerLocationLng?: number;
   }): Promise<Conversation> {
+    console.log('🔧 [createConversation] Creating with:', {
+      customerId: data.customerId,
+      partnerId: data.partnerId,
+      serviceType: data.serviceType,
+    });
+    
     // 1. Konuşma oluştur
     const { data: conversation, error: convError } = await supabase
       .from('conversations')
@@ -39,7 +45,12 @@ export const messagingApi = {
       .select()
       .single();
 
-    if (convError) throw convError;
+    if (convError) {
+      console.error('❌ [createConversation] Error creating conversation:', convError);
+      throw convError;
+    }
+    
+    console.log('✅ [createConversation] Conversation created:', conversation.id, 'partner_id:', conversation.partner_id);
 
     // 2. İlk mesajı ekle
     const { error: msgError } = await supabase
@@ -63,7 +74,18 @@ export const messagingApi = {
   async getPartnerConversations(partnerId: string): Promise<Conversation[]> {
     console.log('📨 [getPartnerConversations] Fetching for partner:', partnerId);
     
-    // Konuşmaları al
+    // Önce tüm konuşmaları kontrol et (debug)
+    const { data: allConvs } = await supabase
+      .from('conversations')
+      .select('id, partner_id, customer_id, status')
+      .limit(10);
+    console.log('🔍 [DEBUG] All conversations sample:', allConvs?.map(c => ({ 
+      id: c.id?.substring(0,8), 
+      partner: c.partner_id?.substring(0,8), 
+      status: c.status 
+    })));
+    
+    // Konuşmaları al - partner_id ile (status filtresi yok)
     const { data, error } = await supabase
       .from('conversations')
       .select(`
@@ -77,8 +99,7 @@ export const messagingApi = {
         )
       `)
       .eq('partner_id', partnerId)
-      .eq('status', 'active')
-      .order('last_message_at', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('❌ [getPartnerConversations] Error:', error);
@@ -86,6 +107,36 @@ export const messagingApi = {
     }
 
     console.log('✅ [getPartnerConversations] Found conversations:', data?.length || 0);
+    
+    // Eğer konuşma bulunamadıysa, messages tablosundan kontrol et
+    if (!data || data.length === 0) {
+      console.log('🔍 [getPartnerConversations] No conversations found, checking messages...');
+      
+      // Bu partner'a gelen mesajları kontrol et (messages tablosunda)
+      const { data: orphanMessages } = await supabase
+        .from('messages')
+        .select('conversation_id')
+        .order('created_at', { ascending: false })
+        .limit(10);
+        
+      if (orphanMessages && orphanMessages.length > 0) {
+        console.log('⚠️ [getPartnerConversations] Found orphan messages:', orphanMessages.length);
+        
+        // Bu conversation'ların detaylarını kontrol et
+        const convIds = [...new Set(orphanMessages.map(m => m.conversation_id))];
+        for (const convId of convIds) {
+          const { data: conv } = await supabase
+            .from('conversations')
+            .select('*')
+            .eq('id', convId)
+            .single();
+            
+          if (conv) {
+            console.log(`📌 Conv ${convId.substring(0,8)}: partner_id=${conv.partner_id?.substring(0,8)}, target=${partnerId.substring(0,8)}`);
+          }
+        }
+      }
+    }
 
     // Customer bilgilerini ayrı çek
     const conversationsWithCustomers = await Promise.all(
