@@ -154,6 +154,8 @@ export interface PartnerVehicleShowcase {
 
 // Partner Detay Sayfası için tam veri yapısı
 export interface PartnerShowcaseData {
+  partnerId: string; // Partner ID
+  companyName: string; // Company name
   partner: Partial<Partner>;
   vehicles: PartnerVehicle[];
   showcaseVehicle?: PartnerVehicleShowcase;

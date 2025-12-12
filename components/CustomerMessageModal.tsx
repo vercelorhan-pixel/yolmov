@@ -89,9 +89,21 @@ const CustomerMessageModal: React.FC<CustomerMessageModalProps> = ({
       return;
     }
 
+    if (!partnerId) {
+      console.error('❌ partnerId is missing!');
+      setError('Partner bilgisi eksik. Lütfen sayfayı yenileyin.');
+      return;
+    }
+
     try {
       setSending(true);
       setError('');
+
+      console.log('📤 Sending message:', {
+        customerId: customer.id,
+        partnerId: partnerId,
+        serviceType: serviceType,
+      });
 
       // Konuşma oluştur
       await messagingApi.createConversation({

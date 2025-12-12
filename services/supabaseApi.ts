@@ -3951,6 +3951,8 @@ export const partnerShowcaseApi = {
       }));
       
       return {
+        partnerId: partner.id,
+        companyName: partner.company_name || partner.name || 'Partner',
         partner,
         vehicles,
         showcaseVehicle: vehicles.find(v => v.is_showcase_vehicle) || vehicles[0] || null,
