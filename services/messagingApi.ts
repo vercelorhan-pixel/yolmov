@@ -63,6 +63,7 @@ export const messagingApi = {
   async getPartnerConversations(partnerId: string): Promise<Conversation[]> {
     console.log('📨 [getPartnerConversations] Fetching for partner:', partnerId);
     
+    // Konuşmaları al
     const { data, error } = await supabase
       .from('conversations')
       .select(`
@@ -73,12 +74,6 @@ export const messagingApi = {
           content_masked,
           sender_type,
           created_at
-        ),
-        customers:customer_id (
-          id,
-          first_name,
-          last_name,
-          phone
         )
       `)
       .eq('partner_id', partnerId)
@@ -92,14 +87,38 @@ export const messagingApi = {
 
     console.log('✅ [getPartnerConversations] Found conversations:', data?.length || 0);
 
-    return data.map(conv => ({
-      ...this.mapConversation(conv),
-      customerName: conv.customers 
-        ? `${conv.customers.first_name || ''} ${conv.customers.last_name || ''}`.trim() || 'Müşteri'
-        : 'Müşteri',
-      customerPhone: conv.customers?.phone,
-      lastMessage: conv.messages?.[0] ? this.mapMessage(conv.messages[0]) : undefined,
-    }));
+    // Customer bilgilerini ayrı çek
+    const conversationsWithCustomers = await Promise.all(
+      data.map(async (conv) => {
+        let customerName = 'Müşteri';
+        let customerPhone = undefined;
+
+        try {
+          // customer_id ile customers tablosundan bilgi çek
+          const { data: customerData } = await supabase
+            .from('customers')
+            .select('first_name, last_name, phone')
+            .eq('id', conv.customer_id)
+            .single();
+
+          if (customerData) {
+            customerName = `${customerData.first_name || ''} ${customerData.last_name || ''}`.trim() || 'Müşteri';
+            customerPhone = customerData.phone;
+          }
+        } catch (err) {
+          console.warn('⚠️ Could not fetch customer info:', err);
+        }
+
+        return {
+          ...this.mapConversation(conv),
+          customerName,
+          customerPhone,
+          lastMessage: conv.messages?.[0] ? this.mapMessage(conv.messages[0]) : undefined,
+        };
+      })
+    );
+
+    return conversationsWithCustomers;
   },
 
   /**
@@ -108,6 +127,7 @@ export const messagingApi = {
   async getCustomerConversations(customerId: string): Promise<Conversation[]> {
     console.log('📨 [getCustomerConversations] Fetching for customer:', customerId);
     
+    // Konuşmaları al
     const { data, error } = await supabase
       .from('conversations')
       .select(`
@@ -117,12 +137,6 @@ export const messagingApi = {
           content,
           sender_type,
           created_at
-        ),
-        partners:partner_id (
-          id,
-          name,
-          company_name,
-          phone
         )
       `)
       .eq('customer_id', customerId)
@@ -136,12 +150,38 @@ export const messagingApi = {
 
     console.log('✅ [getCustomerConversations] Found conversations:', data?.length || 0);
 
-    return data.map(conv => ({
-      ...this.mapConversation(conv),
-      partnerName: conv.partners?.company_name || conv.partners?.name || 'Partner',
-      partnerPhone: conv.partners?.phone,
-      lastMessage: conv.messages?.[0] ? this.mapMessage(conv.messages[0]) : undefined,
-    }));
+    // Partner bilgilerini ayrı çek
+    const conversationsWithPartners = await Promise.all(
+      data.map(async (conv) => {
+        let partnerName = 'Partner';
+        let partnerPhone = undefined;
+
+        try {
+          // partner_id ile partners tablosundan bilgi çek
+          const { data: partnerData } = await supabase
+            .from('partners')
+            .select('name, company_name, phone')
+            .eq('id', conv.partner_id)
+            .single();
+
+          if (partnerData) {
+            partnerName = partnerData.company_name || partnerData.name || 'Partner';
+            partnerPhone = partnerData.phone;
+          }
+        } catch (err) {
+          console.warn('⚠️ Could not fetch partner info:', err);
+        }
+
+        return {
+          ...this.mapConversation(conv),
+          partnerName,
+          partnerPhone,
+          lastMessage: conv.messages?.[0] ? this.mapMessage(conv.messages[0]) : undefined,
+        };
+      })
+    );
+
+    return conversationsWithPartners;
   },
 
   /**
