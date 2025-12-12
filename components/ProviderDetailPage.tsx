@@ -609,9 +609,8 @@ const ProviderDetailPage: React.FC = () => {
       </div>
       
       {/* Customer Message Modal */}
-      {showcaseData && (
+      {showMessageModal && showcaseData && (
         <CustomerMessageModal
-          isOpen={showMessageModal}
           onClose={() => setShowMessageModal(false)}
           partnerId={showcaseData.partnerId}
           partnerName={showcaseData.companyName}

@@ -6,13 +6,7 @@ import {
 } from 'lucide-react';
 import { Conversation, Partner } from '../../types';
 import messagingApi from '../../services/messagingApi';
-import { supabaseApi } from '../../services/supabaseApi';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  (import.meta as any).env.VITE_SUPABASE_URL || '',
-  (import.meta as any).env.VITE_SUPABASE_ANON_KEY || ''
-);
+import { supabaseApi, supabase } from '../../services/supabaseApi';
 
 const PartnerMessagesInbox: React.FC = () => {
   const navigate = useNavigate();
@@ -39,11 +33,11 @@ const PartnerMessagesInbox: React.FC = () => {
         return;
       }
 
-      // Partner bilgisini al
+      // Partner bilgisini al (partners.id = auth.users.id)
       const { data: partners, error: partnerError } = await supabase
         .from('partners')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('id', session.user.id)
         .single();
         
       if (partnerError || !partners) {
