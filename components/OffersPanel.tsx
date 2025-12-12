@@ -4,6 +4,7 @@ import { Customer, Request, Offer } from '../types';
 import supabaseApi from '../services/supabaseApi';
 import { ArrowLeft, MapPin, CheckCircle2, XCircle, Clock, Handshake, FilePlus, Check, X, RefreshCcw, Eye, User, Phone, Navigation, ShieldCheck, DollarSign, Ban, Star, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import CustomerBottomNav from './CustomerBottomNav';
 
 const statusBadge = (status: Request['status']) => {
   const base = 'text-xs px-2 py-1 rounded font-bold';
@@ -272,7 +273,8 @@ const OffersPanel: React.FC = () => {
         service: requestToRate.serviceType,
         rating: ratingValue,
         comment: ratingComment,
-        tags: [] // Müşteri tarafında tag seçimi yok şu an
+        tags: [], // Müşteri tarafında tag seçimi yok şu an
+        date: new Date().toISOString() // ✅ Tarih eklendi
       });
       
       alert('Değerlendirmeniz için teşekkürler!');
@@ -314,7 +316,7 @@ const OffersPanel: React.FC = () => {
   }
 
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-gray-50 py-8 px-4 md:px-8">
+    <div className="min-h-[calc(100vh-80px)] bg-gray-50 py-8 px-4 md:px-8 pb-24">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center gap-4 mb-6">
           <button onClick={() => navigate('/musteri/profil')} className="inline-flex items-center gap-2 text-gray-600 hover:text-brand-orange text-sm font-bold"><ArrowLeft size={18}/> Geri</button>
@@ -741,6 +743,9 @@ const OffersPanel: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Bottom Navigation */}
+      <CustomerBottomNav />
     </div>
   );
 };

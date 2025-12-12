@@ -10,6 +10,7 @@ import {
   Truck, Clock, Car, Archive
 } from 'lucide-react';
 import { CITIES_WITH_DISTRICTS } from '../constants';
+import CustomerBottomNav from './CustomerBottomNav';
 
 // Toast Notification Component
 const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () => void }> = ({ message, type, onClose }) => {
@@ -512,7 +513,7 @@ const CustomerProfilePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-gray-50 py-8 px-4 md:px-8">
+    <div className="min-h-[calc(100vh-80px)] bg-gray-50 py-8 px-4 md:px-8 pb-24">
       {showProfileSavedModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
@@ -1440,6 +1441,9 @@ const CustomerProfilePage: React.FC = () => {
           animation: slide-up 0.3s ease-out;
         }
       `}</style>
+
+      {/* Bottom Navigation */}
+      <CustomerBottomNav />
     </div>
   );
 };
