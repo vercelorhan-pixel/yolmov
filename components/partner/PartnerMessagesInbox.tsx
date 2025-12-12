@@ -20,16 +20,17 @@ const PartnerMessagesInbox: React.FC<PartnerMessagesInboxProps> = ({ partnerCred
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [creditBalance, setCreditBalance] = useState(partnerCredit || 0);
+  const [creditBalance, setCreditBalance] = useState(0);
   const [filter, setFilter] = useState<'all' | 'locked' | 'unlocked'>('all');
 
   useEffect(() => {
     loadData();
   }, []);
 
-  // Prop'tan gelen krediyi güncelle
+  // Prop'tan gelen krediyi HEMEN güncelle
   useEffect(() => {
-    if (partnerCredit !== undefined) {
+    if (partnerCredit !== undefined && partnerCredit > 0) {
+      console.log('💰 [PartnerMessagesInbox] Credit updated from props:', partnerCredit);
       setCreditBalance(partnerCredit);
     }
   }, [partnerCredit]);
@@ -60,13 +61,11 @@ const PartnerMessagesInbox: React.FC<PartnerMessagesInboxProps> = ({ partnerCred
       console.log('📨 [PartnerMessagesInbox] Loaded conversations:', convs.length);
       setConversations(convs);
 
-      // Kredi bakiyesini getir (sadece prop olarak gelmemişse)
-      if (partnerCredit === undefined) {
-        const balance = await messagingApi.getPartnerCreditBalance(partnerData.id);
+      // Kredi bakiyesini her zaman API'dan yükle (props gecikmeli gelebilir)
+      const balance = await messagingApi.getPartnerCreditBalance(partnerData.id);
+      console.log('💰 [PartnerMessagesInbox] Credit from API:', balance);
+      if (balance > 0) {
         setCreditBalance(balance);
-        console.log('💰 [PartnerMessagesInbox] Credit from API:', balance);
-      } else {
-        console.log('💰 [PartnerMessagesInbox] Credit from props:', partnerCredit);
       }
 
     } catch (error) {

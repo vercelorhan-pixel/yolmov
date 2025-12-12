@@ -276,9 +276,23 @@ export const messagingApi = {
         };
       }
 
-      // 4. Kredi düş (Transaction oluştur)
+      // 4. Kredi düş - partner_credits tablosunu güncelle
       const newBalance = balance - conversation.unlockPrice;
       
+      const { error: creditError } = await supabase
+        .from('partner_credits')
+        .update({ 
+          balance: newBalance,
+          total_spent: supabase.rpc ? undefined : newBalance // total_spent güncelleme opsiyonel
+        })
+        .eq('partner_id', partnerId);
+      
+      if (creditError) {
+        console.error('❌ Credit update error:', creditError);
+        throw creditError;
+      }
+
+      // 5. Transaction kaydı oluştur (tarihçe için)
       const { error: transactionError } = await supabase
         .from('transactions')
         .insert({
@@ -291,9 +305,12 @@ export const messagingApi = {
           status: 'completed',
         });
 
-      if (transactionError) throw transactionError;
+      if (transactionError) {
+        console.warn('⚠️ Transaction log error (non-critical):', transactionError);
+        // Transaction hatası kritik değil, devam et
+      }
 
-      // 5. Konuşmayı güncelle
+      // 6. Konuşmayı güncelle
       const { error: updateError } = await supabase
         .from('conversations')
         .update({
@@ -305,6 +322,8 @@ export const messagingApi = {
 
       if (updateError) throw updateError;
 
+      console.log('✅ [unlockConversation] Success! New balance:', newBalance);
+      
       return { 
         success: true, 
         message: 'Konuşma başarıyla açıldı!', 
@@ -435,29 +454,29 @@ export const messagingApi = {
    * Partner kredi bakiyesini getir
    */
   async getPartnerCreditBalance(partnerId: string): Promise<number> {
+    // partner_credits tablosundan doğrudan bakiyeyi al
     const { data, error } = await supabase
-      .from('transactions')
-      .select('amount')
+      .from('partner_credits')
+      .select('balance')
       .eq('partner_id', partnerId)
-      .order('created_at', { ascending: false })
-      .limit(1);
+      .single();
 
-    if (error) throw error;
-
-    if (data && data.length > 0) {
-      // Son transaction'ın balance_after değerini al
-      const { data: lastTransaction } = await supabase
+    if (error) {
+      console.error('❌ [getPartnerCreditBalance] Error:', error);
+      // Fallback: transactions tablosundan hesapla
+      const { data: txData } = await supabase
         .from('transactions')
         .select('balance_after')
         .eq('partner_id', partnerId)
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
-
-      return lastTransaction?.balance_after || 0;
+      
+      return txData?.balance_after || 0;
     }
 
-    return 0;
+    console.log('💰 [getPartnerCreditBalance] Balance from partner_credits:', data?.balance);
+    return data?.balance || 0;
   },
 
   /**
