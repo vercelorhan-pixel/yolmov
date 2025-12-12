@@ -339,8 +339,11 @@ const PartnerMessagesInbox: React.FC<PartnerMessagesInboxProps> = ({ partnerCred
           partnerId={partner?.id || ''}
           partnerCredit={creditBalance}
           onClose={() => setSelectedConversation(null)}
-          onCreditUpdate={loadData}
-        />
+          onUnlockSuccess={() => {
+            // Unlock başarılı olunca conversation'ı güncelle
+            setSelectedConversation(prev => prev ? { ...prev, isUnlocked: true } : null);
+            loadData(); // Listeyi ve krediyi yenile
+          }}
       )}
     </div>
   );

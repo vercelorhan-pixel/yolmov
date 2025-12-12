@@ -8,7 +8,7 @@ interface PartnerChatModalProps {
   partnerId: string;
   partnerCredit: number;
   onClose: () => void;
-  onCreditUpdate: () => void;
+  onUnlockSuccess: () => void;
 }
 
 const PartnerChatModal: React.FC<PartnerChatModalProps> = ({
@@ -16,7 +16,7 @@ const PartnerChatModal: React.FC<PartnerChatModalProps> = ({
   partnerId,
   partnerCredit,
   onClose,
-  onCreditUpdate
+  onUnlockSuccess
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -71,8 +71,8 @@ const PartnerChatModal: React.FC<PartnerChatModalProps> = ({
 
       if (result.success) {
         setIsUnlocked(true);
-        onCreditUpdate(); // Kredi güncelle
-        alert('✅ Konuşma başarıyla açıldı!');
+        onUnlockSuccess(); // Conversation state ve kredi güncelle
+        // Alert gösterme, hemen mesajları yükle
       } else {
         alert('❌ ' + result.message);
       }

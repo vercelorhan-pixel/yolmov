@@ -4,6 +4,7 @@ import { MessageSquare, ArrowLeft, Loader2, Search } from 'lucide-react';
 import { messagingApi } from '../services/messagingApi';
 import type { Conversation } from '../types';
 import { supabase } from '../services/supabaseApi';
+import CustomerBottomNav from './CustomerBottomNav';
 
 const CustomerMessagesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -150,6 +151,9 @@ const CustomerMessagesPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Bottom Navigation - Mobile */}
+      <CustomerBottomNav />
     </div>
   );
 };
