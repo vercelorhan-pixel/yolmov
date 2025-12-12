@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Send, Loader2, Phone, MapPin, Clock } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Phone, MapPin, Clock, Lock } from 'lucide-react';
 import { messagingApi } from '../services/messagingApi';
 import { supabase } from '../services/supabaseApi';
 import type { Conversation, Message } from '../types';
