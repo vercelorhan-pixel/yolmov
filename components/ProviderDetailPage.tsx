@@ -12,6 +12,7 @@ import { PROVIDERS } from '../constants';
 import { supabaseApi } from '../services/supabaseApi';
 import { motion } from 'framer-motion';
 import { CallPartnerButton } from './voice';
+import CustomerMessageModal from './CustomerMessageModal';
 import { 
   calculateDistance, 
   getCityCoordinates,
@@ -46,6 +47,9 @@ const ProviderDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showcaseData, setShowcaseData] = useState<PartnerShowcaseData | null>(null);
+  
+  // Message Modal State
+  const [showMessageModal, setShowMessageModal] = useState(false);
   
   // 🆕 Mesafe & ETA state'leri
   const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
@@ -590,7 +594,11 @@ const ProviderDetailPage: React.FC = () => {
                       <p className="text-xs text-blue-700 mt-1">
                          Hizmet vermeden önce sürücüyle iletişime geçebilirsiniz.
                       </p>
-                      <button className="mt-2 text-xs font-bold text-blue-600 hover:underline">Mesaj Gönder</button>
+                      <button 
+                        onClick={() => setShowMessageModal(true)}
+                        className="mt-2 text-xs font-bold text-blue-600 hover:underline">
+                        Mesaj Gönder
+                      </button>
                    </div>
                 </div>
 
@@ -599,6 +607,16 @@ const ProviderDetailPage: React.FC = () => {
 
         </div>
       </div>
+      
+      {/* Customer Message Modal */}
+      {showcaseData && (
+        <CustomerMessageModal
+          isOpen={showMessageModal}
+          onClose={() => setShowMessageModal(false)}
+          partnerId={showcaseData.partnerId}
+          partnerName={showcaseData.companyName}
+        />
+      )}
     </div>
   );
 };

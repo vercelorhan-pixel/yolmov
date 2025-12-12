@@ -1,8 +1,8 @@
-import { BarChart3, Users, Shield, FileText, DollarSign, PieChart, FileCheck, Truck, Star, Wallet, History, CreditCard, UserCheck, Settings, Calculator, MapPin, Store, Gift, Activity, PhoneIncoming, Smile, ShieldCheck, Tag, Tags, Megaphone, Eye, Headphones } from 'lucide-react';
+import { BarChart3, Users, Shield, FileText, DollarSign, PieChart, FileCheck, Truck, Star, Wallet, History, CreditCard, UserCheck, Settings, Calculator, MapPin, Store, Gift, Activity, PhoneIncoming, Smile, ShieldCheck, Tag, Tags, Megaphone, Eye, Headphones, MessageSquare } from 'lucide-react';
 import { AdminRole } from '../../types';
 
 export interface AdminTabDef {
-  id: 'overview' | 'reports' | 'call-center' | 'active-calls' | 'call-logs' | 'partner-approval' | 'partners' | 'users' | 'admin-users' | 'customer-requests' | 'offers' | 'job-history' | 'fleet' | 'financial' | 'credits' | 'campaigns' | 'pricing' | 'partner-showcase' | 'service-areas' | 'documents' | 'reviews' | 'activity-logs';
+  id: 'overview' | 'reports' | 'call-center' | 'active-calls' | 'call-logs' | 'partner-approval' | 'partners' | 'users' | 'admin-users' | 'customer-requests' | 'offers' | 'job-history' | 'fleet' | 'financial' | 'credits' | 'campaigns' | 'pricing' | 'partner-showcase' | 'service-areas' | 'documents' | 'reviews' | 'activity-logs' | 'messages';
   label: string;
   icon: any;
   category: 'dashboard' | 'call-center' | 'management' | 'operations' | 'finance' | 'system';
@@ -43,4 +43,5 @@ export const adminTabs: AdminTabDef[] = [
   { id: 'service-areas', label: 'Hizmet Bölgeleri', icon: MapPin, category: 'system', allowedRoles: [AdminRole.SUPER_ADMIN, AdminRole.OPERATIONS] },
   { id: 'documents', label: 'Belge Yönetimi', icon: FileCheck, category: 'system', allowedRoles: [AdminRole.SUPER_ADMIN, AdminRole.OPERATIONS] },
   { id: 'reviews', label: 'Yorumlar', icon: Star, category: 'system', allowedRoles: [AdminRole.SUPER_ADMIN, AdminRole.SUPPORT] },
+  { id: 'messages', label: 'Mesajlaşma Sistemi', icon: MessageSquare, category: 'system', allowedRoles: [AdminRole.SUPER_ADMIN, AdminRole.SUPPORT] },
 ];

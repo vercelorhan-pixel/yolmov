@@ -3439,6 +3439,7 @@ const PartnerDashboard: React.FC = () => {
                   { id: 'payments', label: 'Ödemeler', icon: Receipt },
                   { id: 'offer_history', label: 'Teklif Geçmişi', icon: FileText },
                   { id: 'calls', label: 'Aramalar', icon: Phone },
+                  { id: 'messages', label: 'Mesajlar', icon: MessageSquare },
                 ].map((item) => (
                   <button
                     key={item.id}
@@ -3544,6 +3545,7 @@ const PartnerDashboard: React.FC = () => {
             {activeTab === 'support' && 'Destek'}
             {activeTab === 'calls' && 'Aramalar'}
             {activeTab === 'service_routes' && 'Rotalar'}
+            {activeTab === 'messages' && 'Mesajlar'}
           </h1>
           
           {/* Mobile: Page Title (center) */}
@@ -3772,6 +3774,23 @@ const PartnerDashboard: React.FC = () => {
               setWalletFilter={setWalletFilter}
               setShowAddCreditModal={setShowAddCreditModal}
             />
+          )}
+          {activeTab === 'messages' && (
+            <div className="p-6">
+              <div className="bg-white rounded-2xl p-8 text-center">
+                <MessageSquare size={64} className="mx-auto mb-4 text-blue-500" />
+                <h3 className="text-2xl font-bold text-slate-800 mb-2">Mesajlar</h3>
+                <p className="text-slate-600 mb-6">
+                  Müşterilerinizle güvenli mesajlaşma için ayrıntılı mesajlaşma sayfasına gidin.
+                </p>
+                <button
+                  onClick={() => navigate('/partner/mesajlar')}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Mesajlar Sayfasına Git
+                </button>
+              </div>
+            </div>
           )}
           {activeTab === 'settings' && (
             <PartnerSettingsTab

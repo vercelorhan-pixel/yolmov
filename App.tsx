@@ -38,6 +38,7 @@ const PartnerRegistrationSuccess = React.lazy(() => import('./components/Partner
 const PartnerDashboard = React.lazy(() => import('./components/PartnerDashboard'));
 const PartnerMessagesInbox = React.lazy(() => import('./components/partner/PartnerMessagesInbox'));
 const PartnerChatPage = React.lazy(() => import('./components/partner/PartnerChatPage'));
+const CustomerMessagesPage = React.lazy(() => import('./components/CustomerMessagesPage'));
 const CustomerProfilePage = React.lazy(() => import('./components/CustomerProfilePage'));
 const CustomerRequestsPage = React.lazy(() => import('./components/CustomerRequestsPage'));
 const OffersPanel = React.lazy(() => import('./components/OffersPanel'));
@@ -198,6 +199,7 @@ function App() {
             <Route path="/musteri/profil" element={<ProtectedRoute><CustomerProfilePage /></ProtectedRoute>} />
             <Route path="/musteri/teklifler" element={<ProtectedRoute><OffersPanel /></ProtectedRoute>} />
             <Route path="/musteri/taleplerim" element={<ProtectedRoute><CustomerRequestsPage /></ProtectedRoute>} />
+            <Route path="/musteri/mesajlar" element={<ProtectedRoute><CustomerMessagesPage /></ProtectedRoute>} />
             
             {/* Quote & Listing */}
             <Route path="/liste" element={<ListingPage />} />
