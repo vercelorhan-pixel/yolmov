@@ -8,19 +8,30 @@ import { Conversation, Partner } from '../../types';
 import messagingApi from '../../services/messagingApi';
 import { supabaseApi, supabase } from '../../services/supabaseApi';
 
-const PartnerMessagesInbox: React.FC = () => {
+interface PartnerMessagesInboxProps {
+  partnerCredit?: number; // Dashboard'dan gelen kredi
+}
+
+const PartnerMessagesInbox: React.FC<PartnerMessagesInboxProps> = ({ partnerCredit }) => {
   const navigate = useNavigate();
   
   const [partner, setPartner] = useState<Partner | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [creditBalance, setCreditBalance] = useState(0);
+  const [creditBalance, setCreditBalance] = useState(partnerCredit || 0);
   const [filter, setFilter] = useState<'all' | 'locked' | 'unlocked'>('all');
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // Prop'tan gelen krediyi güncelle
+  useEffect(() => {
+    if (partnerCredit !== undefined) {
+      setCreditBalance(partnerCredit);
+    }
+  }, [partnerCredit]);
 
   const loadData = async () => {
     try {
@@ -45,11 +56,17 @@ const PartnerMessagesInbox: React.FC = () => {
 
       // Konuşmaları yükle
       const convs = await messagingApi.getPartnerConversations(partnerData.id);
+      console.log('📨 [PartnerMessagesInbox] Loaded conversations:', convs.length);
       setConversations(convs);
 
-      // Kredi bakiyesini getir
-      const balance = await messagingApi.getPartnerCreditBalance(partnerData.id);
-      setCreditBalance(balance);
+      // Kredi bakiyesini getir (sadece prop olarak gelmemişse)
+      if (partnerCredit === undefined) {
+        const balance = await messagingApi.getPartnerCreditBalance(partnerData.id);
+        setCreditBalance(balance);
+        console.log('💰 [PartnerMessagesInbox] Credit from API:', balance);
+      } else {
+        console.log('💰 [PartnerMessagesInbox] Credit from props:', partnerCredit);
+      }
 
     } catch (error) {
       console.error('❌ Veri yüklenemedi:', error);

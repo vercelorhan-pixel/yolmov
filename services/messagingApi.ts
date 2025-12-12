@@ -61,6 +61,8 @@ export const messagingApi = {
    * Partnerin konuşmaları listele (kilitli/açık tümü)
    */
   async getPartnerConversations(partnerId: string): Promise<Conversation[]> {
+    console.log('📨 [getPartnerConversations] Fetching for partner:', partnerId);
+    
     const { data, error } = await supabase
       .from('conversations')
       .select(`
@@ -71,16 +73,31 @@ export const messagingApi = {
           content_masked,
           sender_type,
           created_at
+        ),
+        customers:customer_id (
+          id,
+          first_name,
+          last_name,
+          phone
         )
       `)
       .eq('partner_id', partnerId)
       .eq('status', 'active')
       .order('last_message_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ [getPartnerConversations] Error:', error);
+      throw error;
+    }
+
+    console.log('✅ [getPartnerConversations] Found conversations:', data?.length || 0);
 
     return data.map(conv => ({
       ...this.mapConversation(conv),
+      customerName: conv.customers 
+        ? `${conv.customers.first_name || ''} ${conv.customers.last_name || ''}`.trim() || 'Müşteri'
+        : 'Müşteri',
+      customerPhone: conv.customers?.phone,
       lastMessage: conv.messages?.[0] ? this.mapMessage(conv.messages[0]) : undefined,
     }));
   },
@@ -89,6 +106,8 @@ export const messagingApi = {
    * Müşterinin konuşmaları listele
    */
   async getCustomerConversations(customerId: string): Promise<Conversation[]> {
+    console.log('📨 [getCustomerConversations] Fetching for customer:', customerId);
+    
     const { data, error } = await supabase
       .from('conversations')
       .select(`
@@ -98,16 +117,29 @@ export const messagingApi = {
           content,
           sender_type,
           created_at
+        ),
+        partners:partner_id (
+          id,
+          name,
+          company_name,
+          phone
         )
       `)
       .eq('customer_id', customerId)
       .eq('status', 'active')
       .order('last_message_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ [getCustomerConversations] Error:', error);
+      throw error;
+    }
+
+    console.log('✅ [getCustomerConversations] Found conversations:', data?.length || 0);
 
     return data.map(conv => ({
       ...this.mapConversation(conv),
+      partnerName: conv.partners?.company_name || conv.partners?.name || 'Partner',
+      partnerPhone: conv.partners?.phone,
       lastMessage: conv.messages?.[0] ? this.mapMessage(conv.messages[0]) : undefined,
     }));
   },

@@ -106,6 +106,10 @@ const CustomerMessagesPage: React.FC = () => {
             {filteredConversations.map((conv) => (
               <button
                 key={conv.id}
+                onClick={() => {
+                  console.log('🔵 [CustomerMessages] Opening conversation:', conv.id);
+                  navigate(`/musteri/mesajlar/${conv.id}`);
+                }}
                 className="w-full bg-white rounded-xl p-4 hover:shadow-md transition-all text-left border border-slate-100"
               >
                 <div className="flex items-start gap-4">

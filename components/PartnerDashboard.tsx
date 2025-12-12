@@ -3778,7 +3778,7 @@ const PartnerDashboard: React.FC = () => {
           )}
           {activeTab === 'messages' && (
             <div className="p-6">
-              <PartnerMessagesInbox />
+              <PartnerMessagesInbox partnerCredit={credits} />
             </div>
           )}
           {activeTab === 'settings' && (
