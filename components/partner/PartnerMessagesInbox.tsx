@@ -344,6 +344,7 @@ const PartnerMessagesInbox: React.FC<PartnerMessagesInboxProps> = ({ partnerCred
             setSelectedConversation(prev => prev ? { ...prev, isUnlocked: true } : null);
             loadData(); // Listeyi ve krediyi yenile
           }}
+        />
       )}
     </div>
   );
