@@ -349,26 +349,31 @@ const ProviderDetailPage: React.FC = () => {
                </div>
             </div>
 
-            {/* 4. Reviews */}
-            <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100">
-               <div className="flex justify-between items-center mb-6">
-                  <h3 className="font-bold text-lg text-gray-900">Son Değerlendirmeler</h3>
-                  {displayReviewCount > 2 && (
-                     <button className="text-brand-orange font-bold text-sm hover:underline">Tümünü Gör ({displayReviewCount})</button>
-                  )}
-               </div>
-               
-               {/* Real reviews from database */}
-               {reviews.length > 0 ? (
+            {/* 4. Reviews - Only show if partner has real reviews */}
+            {reviews.length > 0 && (
+               <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100">
+                  <div className="flex justify-between items-center mb-6">
+                     <h3 className="font-bold text-lg text-gray-900">Son Değerlendirmeler</h3>
+                     {displayReviewCount > 2 && (
+                        <button className="text-brand-orange font-bold text-sm hover:underline">
+                           Tümünü Gör ({displayReviewCount})
+                        </button>
+                     )}
+                  </div>
+                  
                   <div className="space-y-6">
                      {reviews.slice(0, 3).map((review) => (
                         <div key={review.id} className="border-b border-gray-50 last:border-0 pb-6 last:pb-0">
                            <div className="flex justify-between mb-2">
                               <div className="flex items-center gap-2">
                                  <div className="w-8 h-8 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center">
-                                    <span className="font-bold text-gray-600 text-sm">{review.customer_name?.[0] || 'M'}</span>
+                                    <span className="font-bold text-gray-600 text-sm">
+                                       {review.customer_name?.[0] || 'M'}
+                                    </span>
                                  </div>
-                                 <span className="font-bold text-sm text-gray-800">{review.customer_name || 'Müşteri'}</span>
+                                 <span className="font-bold text-sm text-gray-800">
+                                    {review.customer_name || 'Müşteri'}
+                                 </span>
                               </div>
                               <span className="text-xs text-gray-400">
                                  {review.created_at ? new Date(review.created_at).toLocaleDateString('tr-TR') : '-'}
@@ -390,34 +395,8 @@ const ProviderDetailPage: React.FC = () => {
                         </div>
                      ))}
                   </div>
-               ) : (
-                  /* Fallback demo reviews if no real reviews */
-               <div className="space-y-6">
-                  {[1, 2].map((reviewIdx) => (
-                     <div key={reviewIdx} className="border-b border-gray-50 last:border-0 pb-6 last:pb-0">
-                        <div className="flex justify-between mb-2">
-                           <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 bg-gray-200 rounded-full overflow-hidden">
-                                 <img src={`https://i.pravatar.cc/150?img=${reviewIdx + 10}`} alt="User" />
-                              </div>
-                              <span className="font-bold text-sm text-gray-800">{reviewIdx === 1 ? 'Mehmet Y.' : 'Ayşe K.'}</span>
-                           </div>
-                           <span className="text-xs text-gray-400">{reviewIdx === 1 ? '2 gün önce' : '1 hafta önce'}</span>
-                        </div>
-                        <div className="flex text-yellow-400 mb-2">
-                           {[1,2,3,4,5].map(s => <Star key={s} size={12} fill="currentColor" />)}
-                        </div>
-                        <p className="text-sm text-gray-600">
-                           {reviewIdx === 1 
-                              ? 'Çok hızlı geldiler. Aracımı özenle yüklediler. Kesinlikle tavsiye ederim, işini bilen profesyonel bir ekip.'
-                              : 'Gece geç saatte aradım, hemen yola çıktılar. Fiyat da gayet makul. Teşekkürler!'
-                           }
-                        </p>
-                     </div>
-                  ))}
                </div>
-               )}
-            </div>
+            )}
 
           </div>
 
