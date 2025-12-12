@@ -26,32 +26,29 @@ const PartnerMessagesInbox: React.FC = () => {
     try {
       setLoading(true);
       
-      // Session kontrolü
-      const session = await supabaseApi.auth.getSession();
-      if (!session?.user) {
+      // LocalStorage'dan partner bilgisini kontrol et
+      const partnerStr = localStorage.getItem('yolmov_partner');
+      if (!partnerStr) {
+        console.error('❌ Partner oturumu bulunamadı');
         navigate('/giris/partner');
         return;
       }
 
-      // Partner bilgisini al (partners.id = auth.users.id)
-      const { data: partners, error: partnerError } = await supabase
-        .from('partners')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-        
-      if (partnerError || !partners) {
+      const partnerData = JSON.parse(partnerStr);
+      if (!partnerData?.id) {
+        console.error('❌ Partner ID bulunamadı');
         navigate('/giris/partner');
         return;
       }
-      setPartner(partners as Partner);
+      
+      setPartner(partnerData as Partner);
 
       // Konuşmaları yükle
-      const convs = await messagingApi.getPartnerConversations(partners.id);
+      const convs = await messagingApi.getPartnerConversations(partnerData.id);
       setConversations(convs);
 
       // Kredi bakiyesini getir
-      const balance = await messagingApi.getPartnerCreditBalance(partners.id);
+      const balance = await messagingApi.getPartnerCreditBalance(partnerData.id);
       setCreditBalance(balance);
 
     } catch (error) {

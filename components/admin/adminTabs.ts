@@ -43,5 +43,5 @@ export const adminTabs: AdminTabDef[] = [
   { id: 'service-areas', label: 'Hizmet Bölgeleri', icon: MapPin, category: 'system', allowedRoles: [AdminRole.SUPER_ADMIN, AdminRole.OPERATIONS] },
   { id: 'documents', label: 'Belge Yönetimi', icon: FileCheck, category: 'system', allowedRoles: [AdminRole.SUPER_ADMIN, AdminRole.OPERATIONS] },
   { id: 'reviews', label: 'Yorumlar', icon: Star, category: 'system', allowedRoles: [AdminRole.SUPER_ADMIN, AdminRole.SUPPORT] },
-  { id: 'messages', label: 'Mesajlaşma Sistemi', icon: MessageSquare, category: 'system', allowedRoles: [AdminRole.SUPER_ADMIN, AdminRole.SUPPORT] },
+  { id: 'messages', label: 'Mesajlaşma Sistemi', icon: MessageSquare, category: 'system' },
 ];

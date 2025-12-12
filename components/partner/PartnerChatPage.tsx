@@ -63,25 +63,22 @@ const PartnerChatPage: React.FC = () => {
     try {
       setLoading(true);
 
-      // Session kontrolü
-      const session = await supabaseApi.auth.getSession();
-      if (!session?.user) {
+      // LocalStorage'dan partner bilgisini kontrol et
+      const partnerStr = localStorage.getItem('yolmov_partner');
+      if (!partnerStr) {
+        console.error('❌ Partner oturumu bulunamadı');
         navigate('/giris/partner');
         return;
       }
 
-      // Partner bilgisini al (partners.id = auth.users.id)
-      const { data: partners, error: partnerError } = await supabase
-        .from('partners')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-        
-      if (partnerError || !partners) {
+      const partnerData = JSON.parse(partnerStr);
+      if (!partnerData?.id) {
+        console.error('❌ Partner ID bulunamadı');
         navigate('/giris/partner');
         return;
       }
-      setPartner(partners as Partner);
+      
+      setPartner(partnerData as Partner);
 
       // Konuşma bilgisini al
       const conv = await messagingApi.getConversationById(conversationId!);
@@ -93,11 +90,11 @@ const PartnerChatPage: React.FC = () => {
         setMessages(msgs);
 
         // Okunmamış mesajları okundu yap
-        await messagingApi.markConversationAsRead(conversationId!, session.user.id);
+        await messagingApi.markConversationAsRead(conversationId!, partnerData.id);
       }
 
       // Kredi bakiyesini getir
-      const balance = await messagingApi.getPartnerCreditBalance(partners.id);
+      const balance = await messagingApi.getPartnerCreditBalance(partnerData.id);
       setCreditBalance(balance);
 
     } catch (error) {
@@ -113,13 +110,15 @@ const PartnerChatPage: React.FC = () => {
     try {
       setUnlocking(true);
 
-      const session = await supabaseApi.auth.getSession();
-      if (!session?.user) return;
+      if (!partner?.id) {
+        console.error('❌ Partner ID bulunamadı');
+        return;
+      }
       
       const result = await messagingApi.unlockConversation(
         conversation.id,
         partner.id,
-        session.user.id
+        partner.id
       );
 
       if (result.success) {
@@ -150,13 +149,15 @@ const PartnerChatPage: React.FC = () => {
     try {
       setSending(true);
 
-      // Session kontrolü
-      const session = await supabaseApi.auth.getSession();
-      if (!session?.user) return;
+      // Partner ID kontrolü
+      if (!partner?.id) {
+        console.error('❌ Partner ID bulunamadı');
+        return;
+      }
 
       await messagingApi.sendMessage({
         conversationId: conversation.id,
-        senderId: session.user.id,
+        senderId: partner.id,
         senderType: 'partner',
         content: messageInput,
       });

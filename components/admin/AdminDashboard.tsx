@@ -74,6 +74,7 @@ const AdminCallCenterTab = lazy(() => import('./tabs/AdminCallCenterTab'));
 const AdminActiveCallsTab = lazy(() => import('./tabs/AdminActiveCallsTab'));
 const AdminCallLogsTab = lazy(() => import('./tabs/AdminCallLogsTab'));
 const AdminActivityLogsTab = lazy(() => import('./tabs/AdminActivityLogsTabV2'));
+const AdminMessagesTab = lazy(() => import('./tabs/AdminMessagesTab'));
 
 // Partner destek/yardım talebi
 interface PartnerSupportRequest {
@@ -779,38 +780,9 @@ const AdminDashboard: React.FC = () => {
             <Suspense fallback={<LoadingSkeleton rows={6} />}><AdminActivityLogsTab /></Suspense>
           )}
           {activeTab === 'messages' && (
-            <div className="bg-white rounded-2xl shadow-sm p-8">
-              <div className="text-center">
-                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                </div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">Mesajlaşma Sistemi</h2>
-                <p className="text-slate-600 mb-6 max-w-md mx-auto">
-                  Müşteri-Partner arası mesajlaşma sistemini yönetin. Kilitli mesajları, ödeme durumlarını ve içerik denetimini kontrol edin.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
-                  <div className="bg-slate-50 p-4 rounded-xl">
-                    <div className="text-3xl font-bold text-blue-600 mb-1">--</div>
-                    <div className="text-sm text-slate-600">Aktif Konuşma</div>
-                  </div>
-                  <div className="bg-slate-50 p-4 rounded-xl">
-                    <div className="text-3xl font-bold text-green-600 mb-1">--</div>
-                    <div className="text-sm text-slate-600">Kilitli Mesaj</div>
-                  </div>
-                  <div className="bg-slate-50 p-4 rounded-xl">
-                    <div className="text-3xl font-bold text-orange-600 mb-1">--</div>
-                    <div className="text-sm text-slate-600">Toplam Gelir</div>
-                  </div>
-                </div>
-                <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-                  <p className="text-sm text-yellow-800">
-                    <strong>Geliştirme Aşamasında:</strong> Detaylı mesajlaşma yönetim arayüzü yakında eklenecek.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <Suspense fallback={<LoadingSkeleton />}>
+              <AdminMessagesTab />
+            </Suspense>
           )}
         </main>
       </div>
