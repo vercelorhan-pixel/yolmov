@@ -1,10 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
   MapPin, Navigation, Clock, AlertTriangle, LayoutList, Truck, Wrench,
-  DollarSign, Send, ArrowRight, Loader2, X, CheckCircle, Star
+  DollarSign, Send, ArrowRight, Loader2, X, CheckCircle, Star, Compass
 } from 'lucide-react';
 import { JobRequest, Request, Offer } from '../../types';
+import { 
+  calculateDistance, 
+  geocodeAddress,
+  Coordinates,
+  DistanceResult 
+} from '../../services/distanceService';
 
 interface PartnerNewJobsTabProps {
   requests: JobRequest[];
@@ -45,32 +51,135 @@ const PartnerNewJobsTab: React.FC<PartnerNewJobsTabProps> = ({
   handleStartOperation,
   handleCancelOffer,
 }) => {
+  // 🆕 Mesafe hesaplama state'leri
+  const [partnerCoordinates, setPartnerCoordinates] = useState<Coordinates | null>(null);
+  const [requestDistances, setRequestDistances] = useState<Map<string, DistanceResult>>(new Map());
+  const [isCalculatingDistances, setIsCalculatingDistances] = useState(false);
+
+  // 🆕 Partner konumunu al (sessionStorage'dan veya partner bilgisinden)
+  useEffect(() => {
+    const loadPartnerCoordinates = async () => {
+      // İlk olarak partner'ın hizmet bölgesinden konum al
+      if (partnerServiceAreas.length > 0) {
+        try {
+          const result = await geocodeAddress(partnerServiceAreas[0]);
+          if (result.success) {
+            setPartnerCoordinates({ lat: result.lat, lng: result.lng });
+            console.log('📍 Partner konumu alındı:', partnerServiceAreas[0], result);
+          }
+        } catch (error) {
+          console.error('Partner konumu alınamadı:', error);
+        }
+      }
+    };
+
+    loadPartnerCoordinates();
+  }, [partnerServiceAreas]);
+
+  // 🆕 Request mesafelerini hesapla
+  const calculateRequestDistances = useCallback(async (
+    reqs: (JobRequest & { _originalRequest?: Request })[],
+    partnerCoords: Coordinates
+  ) => {
+    setIsCalculatingDistances(true);
+    const distances = new Map<string, DistanceResult>();
+
+    try {
+      for (const req of reqs) {
+        // Request'in koordinatlarını al (fromLocation'dan veya fromCoordinates'ten)
+        let reqCoords: Coordinates | null = null;
+
+        if (req._originalRequest?.fromCoordinates) {
+          // B2C request - coordinates varsa kullan
+          const coords = req._originalRequest.fromCoordinates as any;
+          if (coords.lat && coords.lng) {
+            reqCoords = { lat: coords.lat, lng: coords.lng };
+          }
+        }
+
+        // Koordinat yoksa location string'inden geocode et
+        if (!reqCoords && req.location) {
+          const result = await geocodeAddress(req.location);
+          if (result.success) {
+            reqCoords = { lat: result.lat, lng: result.lng };
+          }
+        }
+
+        if (reqCoords) {
+          const distance = await calculateDistance(partnerCoords, reqCoords);
+          if (distance.success) {
+            distances.set(req.id, distance);
+          }
+        }
+      }
+
+      setRequestDistances(distances);
+      console.log('✅ Request mesafeleri hesaplandı:', distances.size, 'adet');
+    } catch (error) {
+      console.error('Request mesafe hesaplama hatası:', error);
+    } finally {
+      setIsCalculatingDistances(false);
+    }
+  }, []);
+
+  // 🆕 Partner koordinatı ve requestler değiştiğinde mesafeleri hesapla
+  useEffect(() => {
+    if (partnerCoordinates && (customerRequests.length > 0 || requests.length > 0)) {
+      const allReqs = [...customerRequests.map(req => ({
+        id: req.id,
+        location: req.fromLocation,
+        _originalRequest: req,
+      } as JobRequest & { _originalRequest?: Request })), ...requests];
+      
+      calculateRequestDistances(allReqs, partnerCoordinates);
+    }
+  }, [partnerCoordinates, customerRequests, requests, calculateRequestDistances]);
+
   // Convert B2C requests to JobRequest format, keep reference to original
-  const b2cJobRequests: (JobRequest & { _originalRequest?: Request })[] = customerRequests.map(req => ({
-    id: req.id,
-    serviceType: req.serviceType === 'cekici' ? 'Çekici Hizmeti' :
-                 req.serviceType === 'aku' ? 'Akü Takviyesi' :
-                 req.serviceType === 'lastik' ? 'Lastik Değişimi' :
-                 req.serviceType === 'yakit' ? 'Yakıt Desteği' : 'Yol Yardımı',
-    location: req.fromLocation,
-    dropoffLocation: req.toLocation,
-    distance: '~5 km', // Mock distance
-    price: req.amount || 500, // Estimated
-    timestamp: new Date(req.createdAt).toLocaleString('tr-TR'),
-    customerName: req.customerName || 'B2C Müşteri',
-    vehicleInfo: req.vehicleInfo || 'Belirtilmedi',
-    urgency: 'normal' as const,
-    notes: req.description,
-    _originalRequest: req // Keep reference to original B2C request
-  }));
+  const b2cJobRequests: (JobRequest & { _originalRequest?: Request })[] = customerRequests.map(req => {
+    const distanceInfo = requestDistances.get(req.id);
+    return {
+      id: req.id,
+      serviceType: req.serviceType === 'cekici' ? 'Çekici Hizmeti' :
+                   req.serviceType === 'aku' ? 'Akü Takviyesi' :
+                   req.serviceType === 'lastik' ? 'Lastik Değişimi' :
+                   req.serviceType === 'yakit' ? 'Yakıt Desteği' : 'Yol Yardımı',
+      location: req.fromLocation,
+      dropoffLocation: req.toLocation,
+      distance: distanceInfo?.distanceText || '~? km', // 🆕 Gerçek mesafe
+      price: req.amount || 500, // Estimated
+      timestamp: new Date(req.createdAt).toLocaleString('tr-TR'),
+      customerName: req.customerName || 'B2C Müşteri',
+      vehicleInfo: req.vehicleInfo || 'Belirtilmedi',
+      urgency: 'normal' as const,
+      notes: req.description,
+      _originalRequest: req, // Keep reference to original B2C request
+      _distanceKm: distanceInfo?.distanceKm, // 🆕 Sıralama için
+      _durationText: distanceInfo?.durationText, // 🆕 ETA
+    };
+  });
 
   // Combine mock requests with B2C requests
-  const allRequests: (JobRequest & { _originalRequest?: Request })[] = [...requests, ...b2cJobRequests];
+  const allRequests: (JobRequest & { _originalRequest?: Request; _distanceKm?: number; _durationText?: string })[] = [...requests, ...b2cJobRequests];
 
   const filteredNewJobs = allRequests.filter(req => {
-    if (newJobsFilter === 'nearest') return parseFloat(req.distance) < 10;
+    if (newJobsFilter === 'nearest') {
+      // 🆕 Gerçek mesafeyi kullan (varsa), yoksa string parse et
+      const distanceKm = (req as any)._distanceKm !== undefined 
+        ? (req as any)._distanceKm 
+        : parseFloat(req.distance);
+      return distanceKm < 20; // 20 km altı
+    }
     if (newJobsFilter === 'urgent') return req.urgency === 'high';
     return true;
+  }).sort((a, b) => {
+    // 🆕 "En Yakın" filtresi aktifken mesafeye göre sırala
+    if (newJobsFilter === 'nearest') {
+      const distA = (a as any)._distanceKm || 999;
+      const distB = (b as any)._distanceKm || 999;
+      return distA - distB;
+    }
+    return 0;
   });
 
   // Handler for offer button - routes to correct modal based on job type
@@ -102,9 +211,19 @@ const PartnerNewJobsTab: React.FC<PartnerNewJobsTabProps> = ({
                     {city}
                   </span>
                 ))}
+                {/* 🆕 Konum durumu */}
+                {partnerCoordinates && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full">
+                    <Compass size={12} />
+                    Konum alındı
+                  </span>
+                )}
               </div>
               <p className="text-xs text-blue-600 mt-1">
                 Sadece bu bölgelerdeki iş talepleri gösterilmektedir
+                {partnerCoordinates && requestDistances.size > 0 && (
+                  <span className="text-green-600 font-semibold"> • {requestDistances.size} talep için mesafe hesaplandı</span>
+                )}
               </p>
             </div>
           </div>
@@ -223,10 +342,36 @@ const PartnerNewJobsTab: React.FC<PartnerNewJobsTabProps> = ({
               <div className="space-y-3 mb-4 pb-4 border-b border-slate-100">
                 <div className="flex items-start gap-2">
                   <MapPin size={16} className="text-blue-600 mt-0.5" />
-                  <div>
+                  <div className="flex-1">
                     <p className="text-xs text-slate-500">Alınacak Konum</p>
                     <p className="font-bold text-slate-800">{job.location}</p>
-                    <p className="text-xs text-blue-600 mt-1">📍 {job.distance} uzakta</p>
+                    {/* 🆕 Gerçek mesafe ve ETA gösterimi */}
+                    <div className="flex items-center gap-2 mt-2">
+                      {requestDistances.get(job.id) ? (
+                        <>
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded">
+                            <Navigation size={12} />
+                            {job.distance}
+                          </span>
+                          {(job as any)._durationText && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 text-xs font-bold rounded">
+                              <Clock size={12} />
+                              {(job as any)._durationText}
+                            </span>
+                          )}
+                        </>
+                      ) : isCalculatingDistances ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 text-gray-500 text-xs font-medium rounded">
+                          <Loader2 size={12} className="animate-spin" />
+                          Hesaplanıyor...
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 text-gray-500 text-xs font-medium rounded">
+                          <MapPin size={12} />
+                          {job.distance}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 {job.dropoffLocation && (
