@@ -40,6 +40,8 @@ const PartnerChatModal: React.FC<PartnerChatModalProps> = ({
     // Realtime mesaj dinleme (sadece unlock edilmişse)
     if (!isUnlocked) return;
 
+    console.log('🔌 [Partner Realtime] Subscribing to conversation:', conversation.id);
+    
     const channel = supabase
       .channel(`conversation:${conversation.id}`)
       .on(
@@ -60,9 +62,12 @@ const PartnerChatModal: React.FC<PartnerChatModalProps> = ({
           });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('🔔 [Partner Realtime] Subscription status:', status);
+      });
 
     return () => {
+      console.log('🚫 [Partner Realtime] Unsubscribing from:', conversation.id);
       supabase.removeChannel(channel);
     };
   }, [isUnlocked, conversation.id]);
@@ -127,7 +132,11 @@ const PartnerChatModal: React.FC<PartnerChatModalProps> = ({
         content: newMessage.trim()
       });
 
-      // Realtime mesaj eklenecek, manuel ekleme yapma
+      // Manuel ekleme (Realtime fallback)
+      setMessages((prev) => {
+        if (prev.some(m => m.id === message.id)) return prev;
+        return [...prev, message];
+      });
       setNewMessage('');
     } catch (error) {
       console.error('❌ Failed to send message:', error);

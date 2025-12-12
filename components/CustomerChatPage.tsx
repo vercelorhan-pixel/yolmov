@@ -31,6 +31,8 @@ const CustomerChatPage: React.FC = () => {
     // Realtime mesaj dinleme
     if (!conversationId) return;
 
+    console.log('🔌 [Realtime] Subscribing to conversation:', conversationId);
+    
     const channel = supabase
       .channel(`conversation:${conversationId}`)
       .on(
@@ -51,9 +53,12 @@ const CustomerChatPage: React.FC = () => {
           });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('🔔 [Realtime] Subscription status:', status);
+      });
 
     return () => {
+      console.log('🚫 [Realtime] Unsubscribing from:', conversationId);
       supabase.removeChannel(channel);
     };
   }, [conversationId]);
@@ -109,7 +114,11 @@ const CustomerChatPage: React.FC = () => {
         content: newMessage.trim()
       });
 
-      // Realtime mesaj eklenecek, manuel ekleme yapma
+      // Manuel ekleme (Realtime fallback)
+      setMessages((prev) => {
+        if (prev.some(m => m.id === message.id)) return prev;
+        return [...prev, message];
+      });
       setNewMessage('');
     } catch (error) {
       console.error('Failed to send message:', error);
