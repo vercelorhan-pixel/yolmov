@@ -5,13 +5,18 @@ import {
   ArrowLeft, Star, ShieldCheck, MapPin, Clock, 
   CreditCard, Truck, CheckCircle2, MessageSquare,
   ThumbsUp, Calendar, Navigation, Loader2, AlertCircle,
-  Zap, Shield, Phone
+  Zap, Shield, Phone, Compass
 } from 'lucide-react';
 import { Provider, PartnerShowcaseData } from '../types';
 import { PROVIDERS } from '../constants';
 import { supabaseApi } from '../services/supabaseApi';
 import { motion } from 'framer-motion';
 import { CallPartnerButton } from './voice';
+import { 
+  calculateDistance, 
+  getCityCoordinates,
+  Coordinates 
+} from '../services/distanceService';
 
 // Equipment labels mapping
 const EQUIPMENT_LABELS: Record<string, { label: string; icon: string }> = {
@@ -42,8 +47,67 @@ const ProviderDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showcaseData, setShowcaseData] = useState<PartnerShowcaseData | null>(null);
   
+  // 🆕 Mesafe & ETA state'leri
+  const [userCoordinates, setUserCoordinates] = useState<Coordinates | null>(null);
+  const [distanceInfo, setDistanceInfo] = useState<{
+    distanceKm: number;
+    distanceText: string;
+    durationMinutes: number;
+    durationText: string;
+  } | null>(null);
+  const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
+  
   // Try to get provider from location state (old flow for backwards compatibility)
   const providerFromState = location.state?.provider;
+  
+  // 🆕 Kullanıcı konumunu al
+  useEffect(() => {
+    // SessionStorage'dan koordinatları kontrol et
+    const storedCoords = sessionStorage.getItem('yolmov_user_coords');
+    if (storedCoords) {
+      try {
+        const coords = JSON.parse(storedCoords);
+        setUserCoordinates(coords);
+        console.log('📍 ProviderDetail: Kaydedilmiş koordinatlar yüklendi:', coords);
+      } catch (e) {
+        console.warn('Koordinat parse hatası:', e);
+      }
+    }
+  }, []);
+  
+  // 🆕 Partner mesafesini hesapla
+  const calculatePartnerDistance = useCallback(async (partner: any, userCoords: Coordinates) => {
+    setIsCalculatingDistance(true);
+    
+    try {
+      let partnerCoords: Coordinates | null = null;
+      
+      // Partner koordinatı varsa kullan
+      if (partner.latitude && partner.longitude) {
+        partnerCoords = { lat: partner.latitude, lng: partner.longitude };
+      } else if (partner.city) {
+        // Yoksa şehir adından geocode et
+        partnerCoords = await getCityCoordinates(partner.city);
+      }
+      
+      if (partnerCoords) {
+        const result = await calculateDistance(userCoords, partnerCoords);
+        if (result.success) {
+          setDistanceInfo({
+            distanceKm: result.distanceKm,
+            distanceText: result.distanceText,
+            durationMinutes: result.durationMinutes,
+            durationText: result.durationText
+          });
+          console.log('✅ Mesafe hesaplandı:', result);
+        }
+      }
+    } catch (error) {
+      console.error('Mesafe hesaplama hatası:', error);
+    } finally {
+      setIsCalculatingDistance(false);
+    }
+  }, []);
   
   // Load real showcase data from Supabase
   const loadShowcaseData = useCallback(async () => {
@@ -57,6 +121,11 @@ const ProviderDetailPage: React.FC = () => {
       
       if (data) {
         setShowcaseData(data);
+        
+        // 🆕 Partner yüklendikten sonra mesafe hesapla
+        if (userCoordinates && data.partner) {
+          calculatePartnerDistance(data.partner, userCoordinates);
+        }
       } else {
         // No real data found - will fall back to providerFromState or show error
         if (!providerFromState) {
@@ -71,7 +140,7 @@ const ProviderDetailPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [id, providerFromState]);
+  }, [id, providerFromState, userCoordinates, calculatePartnerDistance]);
   
   useEffect(() => {
     // If we have state from listing, stop loading immediately for better UX
@@ -123,8 +192,19 @@ const ProviderDetailPage: React.FC = () => {
   const displayReviewCount = showcaseData?.totalReviews || providerFromState?.reviewCount || 0;
   // Partner profil fotoğrafı: önce profile_photo_url, sonra logo_url, sonra state'den gelen, son olarak avatar
   const displayImage = partner?.profile_photo_url || partner?.logo_url || providerFromState?.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=FF6B35&color=fff&size=128`;
-  const displayDistance = providerFromState?.distance || '3.2 km';
-  const displayEta = providerFromState?.eta || '15 dk';
+  
+  // 🆕 Mesafe & ETA - Gerçek hesaplanan veriler veya fallback
+  const displayDistance = distanceInfo?.distanceText || providerFromState?.distanceText || 
+    (providerFromState?.distance ? providerFromState.distance : 'Hesaplanıyor...');
+  const displayEta = distanceInfo?.durationText || providerFromState?.durationText || 
+    (providerFromState?.eta ? providerFromState.eta : 'Hesaplanıyor...');
+  const displayDurationMinutes = distanceInfo?.durationMinutes || 
+    (providerFromState?.durationMinutes ? providerFromState.durationMinutes : 30);
+  
+  // Şimdiki saat + ETA
+  const currentTime = new Date();
+  const estimatedArrivalTime = new Date(currentTime.getTime() + displayDurationMinutes * 60000);
+  const arrivalTimeStr = estimatedArrivalTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
   
   // Showcase specific data
   const showcaseDescription = partner?.showcase_description;
@@ -152,7 +232,15 @@ const ProviderDetailPage: React.FC = () => {
             
             {/* 1. Route/Service Summary Card */}
             <div className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-gray-100">
-              <h2 className="text-2xl font-display font-bold text-gray-900 mb-6">Hizmet Detayları</h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-display font-bold text-gray-900">Hizmet Detayları</h2>
+                {isCalculatingDistance && (
+                  <div className="flex items-center gap-2 text-blue-500 text-sm">
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Hesaplanıyor...</span>
+                  </div>
+                )}
+              </div>
               
               <div className="flex flex-col md:flex-row gap-8 relative">
                 {/* Vertical Line for Timeline */}
@@ -161,47 +249,80 @@ const ProviderDetailPage: React.FC = () => {
                 {/* Pickup */}
                 <div className="flex gap-4 relative z-10">
                    <div className="flex flex-col items-center gap-1">
-                      <div className="text-sm font-bold text-gray-900">00:00</div>
+                      <div className="text-sm font-bold text-gray-900">
+                        {currentTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
                       <div className="w-10 h-10 rounded-full border-2 border-brand-orange bg-white flex items-center justify-center z-10">
                          <MapPin size={18} className="text-brand-orange fill-brand-orange/20" />
                       </div>
                    </div>
                    <div className="pt-1">
                       <h3 className="font-bold text-gray-900 text-lg">Konumunuz</h3>
-                      <p className="text-gray-500 text-sm">Mevcut GPS Konumu</p>
-                      <span className="inline-block mt-2 px-2 py-1 bg-green-50 text-green-700 text-xs font-bold rounded">
-                         {displayDistance} uzakta
-                      </span>
+                      {userCoordinates ? (
+                        <p className="text-gray-500 text-sm flex items-center gap-1">
+                          <Compass size={14} className="text-green-500" />
+                          GPS Konumu Alındı
+                        </p>
+                      ) : (
+                        <p className="text-gray-500 text-sm">Şehir/İlçe seçimi</p>
+                      )}
+                      {distanceInfo ? (
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="inline-block px-2 py-1 bg-green-50 text-green-700 text-xs font-bold rounded">
+                            {displayDistance} uzakta
+                          </span>
+                          <span className="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded">
+                            {displayEta} süre
+                          </span>
+                        </div>
+                      ) : userCoordinates ? (
+                        <span className="inline-block mt-2 px-2 py-1 bg-gray-100 text-gray-500 text-xs font-medium rounded">
+                          Mesafe hesaplanıyor...
+                        </span>
+                      ) : (
+                        <span className="inline-block mt-2 px-2 py-1 bg-orange-50 text-orange-600 text-xs font-medium rounded">
+                          Konum bilgisi yok
+                        </span>
+                      )}
                    </div>
                 </div>
 
                 {/* Duration - Desktop Only Visual */}
-                <div className="hidden md:flex flex-1 flex-col items-center justify-center px-4">
-                   <div className="text-xs font-bold text-gray-400 mb-2">{displayEta} tahmini varış</div>
-                   <div className="w-full h-0.5 bg-gray-200 relative">
-                      <div className="absolute right-0 -top-1.5 w-3 h-3 rounded-full bg-gray-300"></div>
-                      <Truck className="absolute left-1/2 -top-3 -translate-x-1/2 text-brand-orange" size={20} />
-                   </div>
-                </div>
+                {distanceInfo && (
+                  <div className="hidden md:flex flex-1 flex-col items-center justify-center px-4">
+                     <div className="text-xs font-bold text-gray-400 mb-2">{displayEta} tahmini varış</div>
+                     <div className="w-full h-0.5 bg-gray-200 relative">
+                        <div className="absolute right-0 -top-1.5 w-3 h-3 rounded-full bg-gray-300"></div>
+                        <Truck className="absolute left-1/2 -top-3 -translate-x-1/2 text-brand-orange" size={20} />
+                     </div>
+                  </div>
+                )}
 
                 {/* Destination (Simulated) */}
                 <div className="flex gap-4 relative z-10">
                    <div className="flex flex-col items-center gap-1 md:hidden">
-                      <div className="text-sm font-bold text-gray-900 text-opacity-0">00:00</div>
+                      <div className="text-sm font-bold text-gray-900 text-opacity-0">
+                        {arrivalTimeStr}
+                      </div>
                       <div className="w-10 h-10 rounded-full border-2 border-gray-300 bg-white flex items-center justify-center">
-                         <Navigation size={18} className="text-gray-400" />
+                         <ShieldCheck size={18} className="text-gray-400" />
                       </div>
                    </div>
                    <div className="hidden md:flex flex-col items-center gap-1">
-                      <div className="text-sm font-bold text-gray-900">~{parseInt(displayEta) + 15} dk</div>
-                      <div className="w-10 h-10 rounded-full border-2 border-gray-300 bg-white flex items-center justify-center">
-                         <Navigation size={18} className="text-gray-400" />
+                      <div className="text-sm font-bold text-gray-900">{arrivalTimeStr}</div>
+                      <div className="w-10 h-10 rounded-full border-2 border-green-500 bg-white flex items-center justify-center">
+                         <ShieldCheck size={18} className="text-green-500" />
                       </div>
                    </div>
 
                    <div className="pt-1">
-                      <h3 className="font-bold text-gray-900 text-lg">En Yakın Servis</h3>
-                      <p className="text-gray-500 text-sm">veya İstediğiniz Konum</p>
+                      <h3 className="font-bold text-gray-900 text-lg">{displayName}</h3>
+                      <p className="text-gray-500 text-sm">{partner?.city || 'Hizmet noktası'}</p>
+                      {responseTime && (
+                        <span className="inline-block mt-2 px-2 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded">
+                          {responseTime} yanıt süresi
+                        </span>
+                      )}
                    </div>
                 </div>
               </div>
